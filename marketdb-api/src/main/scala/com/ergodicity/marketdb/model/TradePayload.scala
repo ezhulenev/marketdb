@@ -1,7 +1,6 @@
 package com.ergodicity.marketdb.model
 
 import sbinary._
-import DefaultProtocol._
 import Operations._
 import org.joda.time.DateTime
 

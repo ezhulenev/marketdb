@@ -5,35 +5,27 @@ object MarketDBBuild extends Build {
 
   lazy val buildSettings = Seq(
     organization := "com.ergodicity.marketdb",
-    version      := "0.1",
+    version      := "0.1-SNAPSHOT",
     scalaVersion := "2.9.1"
   )
 
   lazy val marketdb = Project(
     id = "marketdb",
     base = file("."),
-/*    settings = parentSettings ++ Release.settings ++ Unidoc.settings ++ Rstdoc.settings ++ Publish.versionSettings ++ Dist.settings ++ Seq(
-      parallelExecution in GlobalScope := System.getProperty("akka.parallelExecution", "false").toBoolean,
-      Publish.defaultPublishTo in ThisBuild <<= crossTarget / "repository",
-      Unidoc.unidocExclude := Seq(samples.id, tutorials.id),
-      Dist.distExclude := Seq(actorTests.id, akkaSbtPlugin.id, docs.id)
-    ),*/
     aggregate = Seq(marketdbApi, marketdbCore)
   )
 
   lazy val marketdbApi = Project(
     id = "marketdb-api",
     base = file("marketdb-api"),
-    settings = Project.defaultSettings ++ Seq(libraryDependencies ++= Dependencies.marketDB)
-  ).configs( IntegrationTest )
-    .settings( Defaults.itSettings : _*)
-
+    settings = Project.defaultSettings ++ Seq(libraryDependencies ++= Dependencies.api)
+  )
 
   lazy val marketdbCore = Project(
     id = "marketdb-core",
     base = file("marketdb-core"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ Seq(libraryDependencies ++= Dependencies.marketDB)
+    settings = Project.defaultSettings ++ Seq(libraryDependencies ++= Dependencies.core)
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 }
@@ -42,10 +34,10 @@ object Dependencies {
   import Dependency._
 
   val spring = Seq(springCore, springBeans, springContext)
-  val integrationTest = Test.scalatest
 
+  val api = Seq(sbinary, jodaTime, jodaConvert)
 
-  val marketDB = Seq(sbinary, finagleCore, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++ spring ++
+  val core = Seq(sbinary, finagleCore, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++ spring ++
     Seq(Test.springTest, Test.junit, Test.mockito) ++
     Seq(Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
 }
