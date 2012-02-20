@@ -12,34 +12,49 @@ object MarketDBBuild extends Build {
   lazy val marketdb = Project(
     id = "marketdb",
     base = file("."),
-    aggregate = Seq(marketdbApi, marketdbCore)
+    aggregate = Seq(marketdbApi, marketdbCore, marketdbLoader)
   )
 
   lazy val marketdbApi = Project(
     id = "marketdb-api",
     base = file("marketdb-api"),
-    settings = Project.defaultSettings ++ Seq(libraryDependencies ++= Dependencies.api)
+    settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.api)
   )
 
   lazy val marketdbCore = Project(
     id = "marketdb-core",
     base = file("marketdb-core"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ Seq(libraryDependencies ++= Dependencies.core)
+    settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.core)
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
+
+  lazy val marketdbLoader = Project(
+    id = "marketdb-loader",
+    base = file("marketdb-loader"),
+    dependencies = Seq(marketdbApi),
+    settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.loader)
+  )
+
+  lazy val repositoriesSetting = Seq(
+    resolvers += "Sonatype Repository" at "http://oss.sonatype.org/content/groups/public/",
+    resolvers += "JBoss repository" at "http://repository.jboss.org/nexus/content/repositories/",
+    resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
+    resolvers += "Typesafe Repository ide-2.9" at "http://repo.typesafe.com/typesafe/simple/ide-2.9/",
+    resolvers += "Twitter Repository" at "http://maven.twttr.com/",
+    resolvers += "Akka Repository" at "http://akka.io/snapshots/"
+  )
 }
 
 object Dependencies {
   import Dependency._
 
-  val spring = Seq(springCore, springBeans, springContext)
-
   val api = Seq(sbinary, jodaTime, jodaConvert)
 
-  val core = Seq(sbinary, finagleCore, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++ spring ++
-    Seq(Test.springTest, Test.junit, Test.mockito) ++
-    Seq(Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
+  val core = Seq(kestrel, scalaTime, sbinary, finagleCore, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert, springCore, springBeans, springContext) ++
+    Seq(Test.springTest, Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
+
+  val loader = Seq(httpClient, kestrel, scalaTime, sbinary, jodaTime, jodaConvert, kestrel, slf4jApi, logback, scalaz)
 }
 
 
@@ -64,6 +79,9 @@ object Dependency {
     val JodaConvert  = "1.2"
     val Finagle      = "1.11.0"
     val SBinary      = "0.4.0"
+    val ScalaTime    = "0.5"
+    val Kestrel      = "2.1.5"
+    val HttpCLient   = "3.1"
   }
 
   // Compile
@@ -81,6 +99,9 @@ object Dependency {
   val jodaConvert   = "org.joda"                    % "joda-convert"           % V.JodaConvert
   val finagleCore   = "com.twitter"                %% "finagle-core"           % V.Finagle
   val sbinary       = "org.scala-tools.sbinary"    %% "sbinary"                % V.SBinary
+  val scalaTime     = "org.scala-tools.time"       %% "time"                   % V.ScalaTime
+  val kestrel       = "net.lag"                     % "kestrel"                % V.Kestrel
+  val httpClient    = "commons-httpclient"          % "commons-httpclient"     % V.HttpCLient
 
   // Provided
 
