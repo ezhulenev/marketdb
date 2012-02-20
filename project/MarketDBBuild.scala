@@ -34,7 +34,8 @@ object MarketDBBuild extends Build {
     base = file("marketdb-loader"),
     dependencies = Seq(marketdbApi),
     settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.loader)
-  )
+  ).configs( IntegrationTest )
+    .settings( Defaults.itSettings : _*)
 
   lazy val repositoriesSetting = Seq(
     resolvers += "Sonatype Repository" at "http://oss.sonatype.org/content/groups/public/",
@@ -54,7 +55,8 @@ object Dependencies {
   val core = Seq(kestrel, scalaTime, sbinary, finagleCore, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert, springCore, springBeans, springContext) ++
     Seq(Test.springTest, Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
 
-  val loader = Seq(httpClient, kestrel, scalaTime, sbinary, jodaTime, jodaConvert, kestrel, slf4jApi, logback, scalaz)
+  val loader = Seq(httpClient, kestrel, scalaTime, sbinary, jodaTime, jodaConvert, kestrel, slf4jApi, logback, scalaz) ++
+    Seq(Test.scalatest, Test.scalacheck, Test.mockito)
 }
 
 

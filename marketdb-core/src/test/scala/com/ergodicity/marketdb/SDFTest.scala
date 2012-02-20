@@ -10,6 +10,11 @@ import collection.mutable.Stack
 import com.twitter.util.{Promise, Future}
 
 
+case class Cache(name: String)
+
+sealed abstract class Source(path: String)
+case class Local(path: String) extends Source(path)
+
 class SDFTest {
   val log = LoggerFactory.getLogger(classOf[SDFTest])
 
