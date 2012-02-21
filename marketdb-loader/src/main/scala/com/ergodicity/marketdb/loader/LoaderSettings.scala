@@ -5,6 +5,5 @@ import org.scala_tools.time.Implicits._
 
 case class LoaderSettings(from: DateTime, until: DateTime, resolvers: Seq[DataResolver]) {
 
-  from.withMinuteOfHour()
 
 }
