@@ -3,12 +3,12 @@ package com.ergodicity.marketdb.loader
 import org.scalatest.Spec
 import org.slf4j.LoggerFactory
 import java.util.zip.ZipInputStream
-import java.io.{InputStreamReader, BufferedReader}
 
 import scalaz.effects._
 import scalaz._
 import Scalaz._
 import IterV._
+import java.io._
 
 
 class ZipReadingTest extends Spec {
@@ -41,24 +41,21 @@ class ZipReadingTest extends Spec {
     it("should work with IterV") {
       val s = sortedLogger[String]
 
-      log.info("RES: "+s(List("1","2","3","0")).run)
+      // log.info("RES: "+s(List("1","2","3","0")).run)
+
+      import InputStreamIteratee._
+      val is = this.getClass.getResourceAsStream("/data/FT120201.zip")
+      val zis = new ZipInputStream(is)
+      zis.getNextEntry
+      val opt = enumInputStream(zis, head) map (_.run)
+      val v = opt.unsafePerformIO
+      log.info("VALUE: "+v)
     }
   }
 
-  def enumReader[A](r: BufferedReader, it: IterV[String, A]): IO[IterV[String, A]] = {
-    def loop: IterV[String, A] => IO[IterV[String, A]] = {
-      case i@Done(_, _) => IO { i }
-      case i@Cont(k) => for {
-        s <- IO { r.readLine }
-        a <- if (s == null) IO { i } else loop(k(El(s)))
-      } yield a
-    }
-    loop(it)
-  }
-
-  implicit val BufferedReaderEnumerator = new Enumerator[BufferedReader] {
+  /*implicit val BufferedReaderEnumerator = new Enumerator[BufferedReader] {
     def apply[E, A](e: BufferedReader[E], i: IterV[E, A]) = null
-  }
+  }*/
 
 
   implicit val ListEnumerator = new Enumerator[List] {
@@ -105,6 +102,35 @@ class ZipReadingTest extends Spec {
         eof = Done(true, EOF[E]))
 
     Cont(first)
+  }
+
+  object InputStreamIteratee {
+    def enumReader[A](r: BufferedReader, it: IterV[String,  A]) : IO[IterV[String,  A]] = {
+      def loop: IterV[String,  A] => IO[IterV[String,  A]] = {
+        case i@Done(_, _) => i.pure[IO]
+        case i@Cont(k) => for {
+          s <- r.readLine.pure[IO]
+          a <- if (s == null) i.pure[IO] else loop(k(El(s)))
+        } yield a
+      }
+      loop(it)
+    }
+
+    def bufferInputStream(is: InputStream) = new BufferedReader(new InputStreamReader(is)).pure[IO]
+
+    def closeReader(r: Reader) = r.close().pure[IO]
+
+    def bracket[A,B,C](init: IO[A], fin: A => IO[B], body: A => IO[C]): IO[C] =
+      for {
+        a <- init
+        c <- body(a)
+        _ <- fin(a)
+      } yield c
+
+    def enumInputStream[A](is: InputStream,  i: IterV[String,  A]) : IO[IterV[String, A]] =
+      bracket(bufferInputStream(is),
+        closeReader(_: BufferedReader),
+        enumReader(_: BufferedReader,  i))
   }
 
 }
