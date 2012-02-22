@@ -2,7 +2,10 @@ package com.ergodicity.marketdb.loader
 
 import org.scalatest.Spec
 import org.slf4j.LoggerFactory
+import java.util.zip.ZipInputStream
+import java.io.{InputStreamReader, BufferedReader}
 
+import scalaz.effects._
 import scalaz._
 import Scalaz._
 import IterV._
@@ -16,38 +19,92 @@ class ZipReadingTest extends Spec {
   describe("Reading RTS zip file") {
     it("should read zip") {
 
-      /*val is = this.getClass.getResourceAsStream("/data/FT120201.zip")
+      val is = this.getClass.getResourceAsStream("/data/FT120201.zip").pure[IO]
+
       log.info("IS: "+is)
 
-      val zis = new ZipInputStream(is)
-      log.info("Entry: "+zis.getNextEntry)
+      val zis = is map {new ZipInputStream(_)}
+      val lines = zis map {zip=>
+        log.info("Entry: "+zip.getNextEntry)
+        val reader = new BufferedReader(new InputStreamReader(zip))
 
-      val reader = new BufferedReader(new InputStreamReader(zis))
+        var line = reader.readLine()
+        while (line != null) {
+          log.info("Line: "+line);
+          line = reader.readLine()
+        }
+      }
 
-      log.info("Line: "+reader.readLine());
-      log.info("Line: "+reader.readLine());
-      log.info("Line: "+reader.readLine());*/
+      lines.unsafePerformIO
+    }
+
+    it("should work with IterV") {
+      val s = sortedLogger[String]
+
+      log.info("RES: "+s(List("1","2","3","0")).run)
+    }
+  }
+
+  def enumReader[A](r: BufferedReader, it: IterV[String, A]): IO[IterV[String, A]] = {
+    def loop: IterV[String, A] => IO[IterV[String, A]] = {
+      case i@Done(_, _) => IO { i }
+      case i@Cont(k) => for {
+        s <- IO { r.readLine }
+        a <- if (s == null) IO { i } else loop(k(El(s)))
+      } yield a
+    }
+    loop(it)
+  }
+
+  implicit val BufferedReaderEnumerator = new Enumerator[BufferedReader] {
+    def apply[E, A](e: BufferedReader[E], i: IterV[E, A]) = null
+  }
+
+
+  implicit val ListEnumerator = new Enumerator[List] {
+    def apply[E, A](e: List[E], i: IterV[E, A]): IterV[E, A] = e match {
+      case List() => i
+      case x :: xs => i.fold(done = (_, _) => i,
+        cont = k => apply(xs, k(El(x))))
+    }
+  }
+
+  def sortedLogger[E <: String] : IterV[E, Boolean] = {
+    def step(is: Boolean, e: E)(s: Input[E]): IterV[E, Boolean] = {
       
-      val list = List(1, 2, 3)
-
+      log.info("Element: "+e)
+      
+      s(el = e2 => if (is && e < e2)
+        Cont(step(is, e2))
+      else
+        Done(false, EOF[E]),
+        empty = Cont(step(is, e)),
+        eof = Done(is, EOF[E]))
     }
+
+    def first(s: Input[E]): IterV[E, Boolean] =
+      s(el = e1 => Cont(step(true, e1)),
+        empty = Cont(first),
+        eof = Done(true, EOF[E]))
+
+    Cont(first)
   }
 
-  def drop[E,A](n: Int): IterV[E,Unit] = {
-    def step: Input[E] => IterV[E,Unit] = {
-      case El(x) => drop(n - 1)
-      case Empty => Cont(step)
-      case EOF => Done((), EOF)
-    }
-    if (n == 0) Done((), Empty) else Cont(step)
+  def sorted[E <: Int] : IterV[E, Boolean] = {
+    def step(is: Boolean, e: E)(s: Input[E]): IterV[E, Boolean] =
+      s(el = e2 => if (is && e < e2)
+        Cont(step(is, e2))
+      else
+        Done(false, EOF[E]),
+        empty = Cont(step(is, e)),
+        eof = Done(is, EOF[E]))
+
+    def first(s: Input[E]): IterV[E, Boolean] =
+      s(el = e1 => Cont(step(true, e1)),
+        empty = Cont(first),
+        eof = Done(true, EOF[E]))
+
+    Cont(first)
   }
-
-
-  def enumerate[E,A]: (List[E], IterV[E,A]) => IterV[E,A] = {
-    case (Nil, i) => i
-    case (_, i@Done(_, _)) => i
-    case (x :: xs, Cont(k)) => enumerate(xs, k(El(x)))
-  }
-
 
 }

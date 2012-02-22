@@ -16,9 +16,9 @@ class TypeClassTest extends Spec {
 
   describe("Loader model") {
     it("should load local reference with plaint text payload") {
-      val local = Local[PlainText](new File(new java.io.File(".")))
+      /*val local = Local[PlainText](new File(new java.io.File(".")))
       log.info("LOCAL REF: " + local)
-      log.info(local.fetch)
+      log.info(local.fetch)*/
 
       val remote = Remote[RtsTradeHistory]("http://ftp.rts.ru")
       log.info("REMOTE REF: " + remote)
