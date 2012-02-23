@@ -1,14 +1,20 @@
 package com.ergodicity.marketdb.loader
 
-import tools.nsc.io.File
+import java.io.{File, InputStream}
 
-sealed abstract class DataFamily
-class PlainText extends DataFamily
-class RtsTradeHistory extends DataFamily
 
-sealed abstract class DataRef[F <: DataFamily]
-case class Local[F](file: File) extends DataRef
-case class Remote[F](url: String) extends DataRef
+sealed abstract class DataRef
+case class InputStreamRef(is: InputStream) extends DataRef
+case class LocalRef(file: File) extends DataRef
+case class RemoteRef(url: String) extends DataRef
+
+sealed trait TradeData[R <: DataRef] {
+  val ref: R
+}
+case class RtsTradeHistory[R <: DataRef](ref: R) extends TradeData[R]
+
+
+
 
 
 
