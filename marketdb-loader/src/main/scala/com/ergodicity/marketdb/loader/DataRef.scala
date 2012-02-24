@@ -1,9 +1,9 @@
 package com.ergodicity.marketdb.loader
 
-import java.io.{File, InputStream}
 import scalaz._
 import Scalaz._
 import scalaz.effects.IO
+import java.io.{FileInputStream, File, InputStream}
 
 
 sealed abstract class DataRef
@@ -30,7 +30,8 @@ object DataFetcher {
   }
 
   implicit def LocalFetcher: DataFetcher[LocalRef] = new DataFetcher[LocalRef] {
-    def toStream(ref: LocalRef) = throw new UnsupportedOperationException("Local Fetcher Not Supported")
+    private def is(ref: LocalRef): InputStream = new FileInputStream(ref.file)
+    def toStream(ref: LocalRef) = is(ref).pure[IO]
   }
 
   implicit def RemoteFetcher(implicit cache: RemoteFetcherCache): DataFetcher[RemoteRef] = new DataFetcher[RemoteRef] {
