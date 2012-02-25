@@ -25,6 +25,10 @@ class DateTest extends Spec {
       log.info("Start to end: " + days)
 
       assert(days.size == 8)
+
+      val oneDay = (now to now).toDays
+      log.info("One day: " + oneDay)
+      assert(oneDay.size == 1)
     }
   }
 }

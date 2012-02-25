@@ -37,6 +37,10 @@ object MarketDBBuild extends Build {
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
+  // -- Settings
+
+  override lazy val settings = super.settings ++ buildSettings
+
   lazy val repositoriesSetting = Seq(
     resolvers += "Sonatype Repository" at "http://oss.sonatype.org/content/groups/public/",
     resolvers += "JBoss repository" at "http://repository.jboss.org/nexus/content/repositories/",
@@ -52,10 +56,10 @@ object Dependencies {
 
   val api = Seq(sbinary, jodaTime, jodaConvert)
 
-  val core = Seq(kestrel, scalaTime, sbinary, finagleCore, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert, springCore, springBeans, springContext) ++
+  val core = Seq( scalaTime, sbinary, finagleCore, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert, springCore, springBeans, springContext) ++
     Seq(Test.springTest, Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
 
-  val loader = Seq(httpClient, kestrel, scalaTime, sbinary, jodaTime, jodaConvert, kestrel, slf4jApi, logback, scalaz) ++
+  val loader = Seq(cli, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz, springCore, springBeans, springContext) ++
     Seq(Test.scalatest, Test.scalacheck, Test.mockito)
 }
 
@@ -79,31 +83,33 @@ object Dependency {
     val ScalaSTM     = "0.4"
     val JodaTime     = "2.0"
     val JodaConvert  = "1.2"
-    val Finagle      = "1.11.0"
+    val Finagle      = "1.11.1"
     val SBinary      = "0.4.0"
     val ScalaTime    = "0.5"
-    val Kestrel      = "2.1.5"
     val HttpCLient   = "3.1"
+    val ScalaIO      = "0.3.0"
+    val Cli          = "1.2"
   }
 
   // Compile
 
-  val springCore    = "org.springframework"         % "spring-core"            % V.Spring     // ApacheV2
-  val springBeans   = "org.springframework"         % "spring-beans"           % V.Spring     // ApacheV2
-  val springContext = "org.springframework"         % "spring-context"         % V.Spring     // ApacheV2
-  val slf4jApi      = "org.slf4j"                   % "slf4j-api"              % V.Slf4j      // MIT
-  val logback       = "ch.qos.logback"              % "logback-classic"        % V.Logback
-  val asyncHBase    = "org.hbase"                   % "asynchbase"             % V.AsyncHBase
-  val scalaz        = "org.scalaz"                 %% "scalaz-core"            % V.Scalaz
-  val cglib         = "cglib"                       % "cglib"                  % V.Cglib
-  val scalaSTM      = "org.scala-tools"            %% "scala-stm"              % V.ScalaSTM
-  val jodaTime      = "joda-time"                   % "joda-time"              % V.JodaTime
-  val jodaConvert   = "org.joda"                    % "joda-convert"           % V.JodaConvert
-  val finagleCore   = "com.twitter"                %% "finagle-core"           % V.Finagle
-  val sbinary       = "org.scala-tools.sbinary"    %% "sbinary"                % V.SBinary
-  val scalaTime     = "org.scala-tools.time"       %% "time"                   % V.ScalaTime
-  val kestrel       = "net.lag"                     % "kestrel"                % V.Kestrel
-  val httpClient    = "commons-httpclient"          % "commons-httpclient"     % V.HttpCLient
+  val springCore    = "org.springframework"               % "spring-core"            % V.Spring     // ApacheV2
+  val springBeans   = "org.springframework"               % "spring-beans"           % V.Spring     // ApacheV2
+  val springContext = "org.springframework"               % "spring-context"         % V.Spring     // ApacheV2
+  val slf4jApi      = "org.slf4j"                         % "slf4j-api"              % V.Slf4j      // MIT
+  val logback       = "ch.qos.logback"                    % "logback-classic"        % V.Logback
+  val asyncHBase    = "org.hbase"                         % "asynchbase"             % V.AsyncHBase
+  val scalaz        = "org.scalaz"                       %% "scalaz-core"            % V.Scalaz
+  val cglib         = "cglib"                             % "cglib"                  % V.Cglib
+  val scalaSTM      = "org.scala-tools"                  %% "scala-stm"              % V.ScalaSTM
+  val jodaTime      = "joda-time"                         % "joda-time"              % V.JodaTime
+  val jodaConvert   = "org.joda"                          % "joda-convert"           % V.JodaConvert
+  val finagleCore   = "com.twitter"                      %% "finagle-core"           % V.Finagle
+  val sbinary       = "org.scala-tools.sbinary"          %% "sbinary"                % V.SBinary
+  val scalaTime     = "org.scala-tools.time"             %% "time"                   % V.ScalaTime
+  val httpClient    = "commons-httpclient"                % "commons-httpclient"     % V.HttpCLient
+  val scalaIO       = "com.github.scala-incubator.io"    %% "scala-io-core"          % V.ScalaIO
+  val cli           = "commons-cli"                       % "commons-cli"            % V.Cli
 
   // Provided
 

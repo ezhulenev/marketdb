@@ -42,13 +42,11 @@ class ScalazIterateeTests extends Spec {
     }
 
     it("should work with IterV") {
-      val s = sortedLogger[String]
-
+      // val s = sortedLogger[String]
       // log.info("RES: "+s(List("1","2","3","0")).run)
 
       val is = this.getClass.getResourceAsStream("/data/FT120201.zip")
       val tradeData = RtsTradeHistory(InputStreamRef(is))
-
 
       import TradeDataIteratee._
       val opt = tradeData.enumTradeData(printer) map (_.run)

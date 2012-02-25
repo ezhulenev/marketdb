@@ -6,11 +6,11 @@ import java.io.File
 import org.joda.time.{LocalDate, DateTime}
 import util.Iteratees
 
-class TradeResolverTest extends Spec {
-  val log = LoggerFactory.getLogger(classOf[TradeResolverTest])
+class LocalTradeResolverTest extends Spec {
+  val log = LoggerFactory.getLogger(classOf[LocalTradeResolverTest])
 
   val RtsTradeHistoryPattern = "'ft'YYMMdd'.zip'"
-  val res = classOf[TradeResolverTest].getResource("/data").toURI
+  val res = classOf[LocalTradeResolverTest].getResource("/data").toURI
   val LocalRefResolver = RefResolver(new File(res), RtsTradeHistoryPattern)
 
   describe("Local RTS History Resolver") {
