@@ -21,9 +21,7 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
 
   describe("MarketDB") {
 
-    val marketDB = new MarketDB(config.hbaseClient(), config.tradesTableName)
-    marketDB.marketIdProvider = config.marketUidProvider()
-    marketDB.codeIdProvider = config.codeUidProvider()
+    val marketDB = new MarketDB(config.hbaseClient(), config.marketUidProvider(), config.codeUidProvider(), config.tradesTableName)
 
     it("should persist new trade") {
 

@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
 import com.ergodicity.marketdb.event.TradeReceived
 import com.ergodicity.marketdb.uid.UIDProvider
-import org.springframework.beans.factory.annotation.{Qualifier, Autowired}
 import org.hbase.async.{PutRequest, HBaseClient}
 import com.twitter.util.{Promise, Future, FuturePool}
 import com.ergodicity.marketdb.{AsyncHBase, ByteArray, Ooops}
@@ -23,20 +22,15 @@ object MarketDB {
   val CodeIdWidth: Short = 3
 }
 
-class MarketDB(client: HBaseClient,
-               @Qualifier("marketdb.table.trades") val tradesTable: String) {
+class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvider: UIDProvider,
+               val tradesTable: String) {
 
   val log = LoggerFactory.getLogger(classOf[MarketDB])
+  log.info("Create MarketDB for table: " + tradesTable)
 
   val ColumnFamily = ByteArray("id")
   val UidThreadPoolSize = 50;
   val uidFuturePool = FuturePool(Executors.newFixedThreadPool(UidThreadPoolSize))
-
-  @Autowired
-  var marketIdProvider: UIDProvider = _
-
-  @Autowired
-  var codeIdProvider: UIDProvider = _
 
   def addTrade(payload: TradePayload) = {
     log.trace("Add trade: " + payload)

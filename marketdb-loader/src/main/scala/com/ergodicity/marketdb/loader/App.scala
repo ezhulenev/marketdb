@@ -1,7 +1,7 @@
 package com.ergodicity.marketdb.loader
 
 import org.slf4j.LoggerFactory
-import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
+import org.joda.time.format.DateTimeFormat
 import org.springframework.context.support.ClassPathXmlApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.apache.commons.cli._
