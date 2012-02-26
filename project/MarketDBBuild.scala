@@ -76,7 +76,7 @@ object Dependency {
     val Mockito      = "1.8.1"
     val Powermock    = "1.4.11"
     val Scalacheck   = "1.9"
-    val AsyncHBase   = "1.1.0"
+    val AsyncHBase   = "1.2.0-SNAPSHOT"
     val Scalaz       = "6.0.4"
     val Cglib        = "2.2.2"
     val Logback      = "1.0.0"
