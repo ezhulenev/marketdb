@@ -7,9 +7,10 @@ import java.util.concurrent.Executors
 import com.ergodicity.marketdb.event.TradeReceived
 import com.ergodicity.marketdb.uid.UIDProvider
 import org.hbase.async.{PutRequest, HBaseClient}
-import com.twitter.util.{Promise, Future, FuturePool}
 import com.ergodicity.marketdb.{AsyncHBase, ByteArray, Ooops}
 import com.ergodicity.marketdb.model._
+import com.twitter.util.{Promise, Future, FuturePool}
+import com.twitter.ostrich.admin.{Service, RuntimeEnvironment}
 
 sealed trait TradeReaction
 
@@ -18,19 +19,45 @@ case class TradePersisted(payload: TradePayload) extends TradeReaction
 case class TradeRejected(cause: NonEmptyList[Ooops]) extends TradeReaction
 
 object MarketDB {
+  val log = LoggerFactory.getLogger(getClass.getName)
   val MarketIdWidth: Short = 1
   val CodeIdWidth: Short = 3
+
+  var marketDB: MarketDB = null
+  var runtime: RuntimeEnvironment = null
+
+  def main(args: Array[String]) {
+    try {
+      runtime = RuntimeEnvironment(this, args)
+      marketDB = runtime.loadRuntimeConfig[MarketDB]()
+      marketDB.start()
+    } catch {
+      case e =>
+        log.error("Exception during startup; exiting!", e)
+        System.exit(1)
+    }
+  }
 }
 
 class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvider: UIDProvider,
-               val tradesTable: String) {
+               val tradesTable: String) extends Service {
 
   val log = LoggerFactory.getLogger(classOf[MarketDB])
-  log.info("Create MarketDB for table: " + tradesTable)
+  log.info("Create marketDB for table: " + tradesTable)
 
   val ColumnFamily = ByteArray("id")
   val UidThreadPoolSize = 50;
   val uidFuturePool = FuturePool(Executors.newFixedThreadPool(UidThreadPoolSize))
+
+
+  def start() {
+    log.info("Start marketDB")
+  }
+
+  def shutdown() {
+    log.info("Shutdown marketDB")
+    client.shutdown()
+  }
 
   def addTrade(payload: TradePayload) = {
     log.trace("Add trade: " + payload)

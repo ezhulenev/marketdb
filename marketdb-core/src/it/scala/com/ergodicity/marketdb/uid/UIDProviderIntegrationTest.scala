@@ -1,22 +1,27 @@
 package com.ergodicity.marketdb.uid
 
 import scalaz._
-import org.slf4j.LoggerFactory
-import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import java.util.Random
 import java.lang.StringBuffer
 import org.scalatest.{GivenWhenThen, Spec}
-import com.ergodicity.marketdb.{TimeRecording, ByteArray, IntegrationTestConfiguration}
+import java.io.File
+import com.twitter.util.Eval
+import com.ergodicity.marketdb.{EvalSupport, TimeRecording, ByteArray}
+import com.ergodicity.marketdb.core.MarketDBConfig
+import org.hbase.async.HBaseClient
 
-class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
+class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecording with EvalSupport {
 
   val Characters = "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890"
   val Kind = "TestKind"
 
   val RandomGenerator = new Random
 
-  val config = new AnnotationConfigApplicationContext(classOf[IntegrationTestConfiguration])
+  val configFile = new File(this.getClass.getResource("/config/it.scala").toURI)
+  val eval = new Eval(getConfigTarget(configFile))
+  val config = eval[MarketDBConfig](configFile)
 
+  lazy val client = new HBaseClient(config.zookeeperQuorum)
 
   describe("UIDProvider") {
 
@@ -80,10 +85,7 @@ class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecord
 
   def createNewProvider = {
     val cache = new UIDCache
-    val hbaseClient = config.getBean(classOf[IntegrationTestConfiguration]).hbaseClient()
-    val uidTableName = config.getBean(classOf[IntegrationTestConfiguration]).uidTableName
-
-    new UIDProvider(hbaseClient, cache, ByteArray(uidTableName), ByteArray(Kind), 3)
+    new UIDProvider(client, cache, ByteArray(config.uidTable), ByteArray(Kind), 3)
   }
 
   def generateString(length: Int) = {

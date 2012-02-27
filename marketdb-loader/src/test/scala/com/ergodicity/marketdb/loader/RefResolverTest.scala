@@ -63,7 +63,7 @@ class RefResolverTest extends Spec with HttpClientMatchers {
 
       // -- Verify
       val expectedUrl: String = RtsUrl + "//F/2012/FT120201.zip"
-      verify(client).executeMethod(getMethodFor(expectedUrl))
+      verify(client).executeMethod(headMethodFor(expectedUrl))
     }
   }
 }

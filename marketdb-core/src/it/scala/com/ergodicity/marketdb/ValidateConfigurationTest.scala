@@ -1,42 +1,42 @@
 package com.ergodicity.marketdb
 
-import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import core.MarketDBConfig
 import org.slf4j.LoggerFactory
 import org.scalatest.Spec
 import java.util.concurrent.TimeUnit
 import com.stumbleupon.async.Deferred
-import org.hbase.async.TableNotFoundException
+import java.io.File
+import com.twitter.util.Eval
+import org.hbase.async.{HBaseClient, TableNotFoundException}
 
-class ValidateConfigurationTest extends Spec {
+class ValidateConfigurationTest extends Spec with EvalSupport {
   val log = LoggerFactory.getLogger(classOf[ValidateConfigurationTest])
   val DefaultTimeout = TimeUnit.SECONDS.toMillis(5)
 
-  val config = new AnnotationConfigApplicationContext(classOf[IntegrationTestConfiguration])
+  val configFile = new File(this.getClass.getResource("/config/it.scala").toURI)
+  val eval = new Eval(getConfigTarget(configFile))
+  val config = eval[MarketDBConfig](configFile)
+
+  lazy val client = new HBaseClient(config.zookeeperQuorum)
 
   describe("Test configuration") {
-
     it("should load quorum properties") {
-      val quorum = config.getBean(classOf[IntegrationTestConfiguration]).quorumUrl
+      val quorum = config.zookeeperQuorum
       log.info("Quorum: " + quorum)
 
       assert(quorum != null)
     }
 
     it("should connect to local HBase and fail on non-existing table") {
-      val hbaseClient = config.getBean(classOf[IntegrationTestConfiguration]).hbaseClient()
-      val exists: Deferred[AnyRef] = hbaseClient.ensureTableExists("Test table")
+      val exists: Deferred[AnyRef] = client.ensureTableExists("Test table")
       intercept[TableNotFoundException] {
         exists.join(DefaultTimeout)
       }
     }
 
     it("should connect to local HBase and verify test tables exists") {
-      val hbaseClient = config.getBean(classOf[IntegrationTestConfiguration]).hbaseClient()
-      val tradesTableName = config.getBean(classOf[IntegrationTestConfiguration]).tradesTableName
-      val uidTableName = config.getBean(classOf[IntegrationTestConfiguration]).uidTableName
-
-      hbaseClient.ensureTableExists(tradesTableName).join(DefaultTimeout)
-      hbaseClient.ensureTableExists(uidTableName).join(DefaultTimeout)
+      client.ensureTableExists(config.tradesTable).join(DefaultTimeout)
+      client.ensureTableExists(config.uidTable).join(DefaultTimeout)
     }
   }
 }

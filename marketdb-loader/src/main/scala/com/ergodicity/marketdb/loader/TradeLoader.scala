@@ -12,12 +12,7 @@ trait TradeLoader {
   def enumTrades[A](day: LocalDate, i: IterV[TradePayload, A]): Option[A]
 }
 
-class RtsTradeLoader(dirName: String, url: String, pattern: String) extends TradeLoader {
-  val dir = new File(dirName)
-  if (!dir.isDirectory) {
-    throw new IllegalStateException("Directory doesn't exists: " + dir.getAbsolutePath)
-  }
-
+class RtsTradeLoader(dir: File, url: String, pattern: String) extends TradeLoader {
   implicit val client = new HttpClient()
   implicit val cache = new LocalMirrorCache(dir, url)
 

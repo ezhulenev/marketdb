@@ -16,7 +16,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
 class RemoteTradeResolverTest extends Spec with HttpClientMatchers {
   val log = LoggerFactory.getLogger(classOf[RemoteTradeResolverTest])
 
-  def is =  {classOf[RemoteTradeResolverTest].getResourceAsStream("/data/FT120201.zip")}
+  val is = classOf[RemoteTradeResolverTest].getResourceAsStream("/data/FT120201.zip")
 
   val RtsFtpUrl = "http://ftp.rts.ru/pub/info/stats/history"
   val RtsPattern = "'/F/'YYYY'/FT'YYMMdd'.zip'"
@@ -49,6 +49,7 @@ class RemoteTradeResolverTest extends Spec with HttpClientMatchers {
     it("should return Some for existing trade data") {
       // -- Set response stream to test data
       reset(client)
+      when(client.executeMethod(headMethodFor(RtsFtpUrl+"//F/2012/FT120201.zip"))).thenReturn(HttpStatus.SC_OK)
       when(client.executeMethod(getMethodFor(RtsFtpUrl+"//F/2012/FT120201.zip", is))).thenReturn(HttpStatus.SC_OK)
 
       val date = new LocalDate(2012, 2, 1)
