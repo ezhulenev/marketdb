@@ -18,6 +18,9 @@ object Loader {
       runtime = RuntimeEnvironment(this, args)
       loader = runtime.loadRuntimeConfig[Loader]()
       loader.start()
+      loader.execute()
+      loader.shutdown()
+      System.exit(0)
     } catch {
       case e =>
         log.error("Exception during startup; exiting!", e)
@@ -37,8 +40,6 @@ class Loader(loader: Option[TradeLoader], interval: Interval) extends Service {
     log.info("Start marketDB loader")
     log.info("Loader: " + loader)
     log.info("Date interval: " + interval)
-
-    execute()
   }
 
   def shutdown() {

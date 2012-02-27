@@ -21,7 +21,6 @@ object MarketDBBuild extends Build {
     base = file("marketdb-api"),
     settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.api)
   )
-
   lazy val marketdbCore = Project(
     id = "marketdb-core",
     base = file("marketdb-core"),
@@ -35,8 +34,7 @@ object MarketDBBuild extends Build {
     base = file("marketdb-loader"),
     dependencies = Seq(marketdbApi),
     settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.loader)
-  ).configs( IntegrationTest )
-    .settings( Defaults.itSettings : _*)
+  )
 
   // -- Settings
 
