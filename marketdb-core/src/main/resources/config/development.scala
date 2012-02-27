@@ -7,7 +7,7 @@ new MarketDBConfig {
   admin.statsNodes = new StatsConfig {
     reporters = new JsonStatsLoggerConfig {
       loggerName = "stats"
-      serviceName = "kestrel"
+      serviceName = "marketDB"
     } :: new TimeSeriesCollectorConfig
   }
 }
