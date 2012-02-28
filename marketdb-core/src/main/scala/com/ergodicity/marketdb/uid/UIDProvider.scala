@@ -32,10 +32,8 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   /** Row key of the special row used to track the max ID already assigned. */
   private val MaxIdRow = ByteArray(Array[Byte](0))
   /** Max attempts to execute put request*/
-  private val MaxAttemptsCreateId = 5
-  private val MaxAttemptsPut = 5
-
-  val PutRetryCount = 10
+  private val MaxAttemptsCreateId = 3
+  private val MaxAttemptsPut = 3
 
   if (kind.isEmpty) {
     throw new IllegalArgumentException("Empty string as 'kind' argument!")

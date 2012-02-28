@@ -6,6 +6,12 @@ import com.ergodicity.marketdb.loader.util.Implicits._
 import util.Iteratees
 import com.twitter.ostrich.admin.{RuntimeEnvironment, Service}
 import com.twitter.ostrich.stats.Stats
+import com.ergodicity.marketdb.model.TradePayload
+import java.net.{ConnectException, Socket}
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.kestrel.Client
+import com.twitter.finagle.kestrel.protocol.Kestrel
+import java.util.concurrent.TimeUnit
 
 object Loader {
   val log = LoggerFactory.getLogger(getClass.getName)
@@ -18,7 +24,7 @@ object Loader {
       runtime = RuntimeEnvironment(this, args)
       loader = runtime.loadRuntimeConfig[Loader]()
       loader.start()
-      loader.execute()
+      Thread.sleep(TimeUnit.SECONDS.toMillis(5))
       loader.shutdown()
       System.exit(0)
     } catch {
@@ -29,31 +35,65 @@ object Loader {
   }
 }
 
-class Loader(loader: Option[TradeLoader], interval: Interval) extends Service {
+class Loader(loader: Option[TradeLoader], interval: Interval, kestrelConfig: Option[KestrelConfig]) extends Service {
   val log = LoggerFactory.getLogger(classOf[Loader])
 
   if (!loader.isDefined) {
     throw new IllegalStateException("Loader not defined")
   }
 
+  kestrelConfig.map(assertKestrelRunning(_))
+
+  val client = kestrelConfig.map(cfg =>
+    Client(ClientBuilder()
+    .codec(Kestrel())
+    .hosts(cfg.host+":"+cfg.port)
+    .hostConnectionLimit(1) // process at most 1 item per connection concurrently
+    .buildFactory()))
+
+  lazy val TradePayloadSerializer = {
+    payload: TradePayload =>
+      import sbinary._
+      import Operations._
+      import com.ergodicity.marketdb.model.TradeProtocol._
+      toByteArray(payload)
+  }
+
   def start() {
     log.info("Start marketDB loader")
     log.info("Loader: " + loader)
     log.info("Date interval: " + interval)
-  }
 
-  def shutdown() {
-    log.info("Shutdown marketDB loader")
-  }
-
-  private def execute() {
     import Iteratees._
+
+    val i = kestrelConfig.flatMap(cfg => client.map(kestrelLoader[TradePayload](cfg.tradesQueue, _, TradePayloadSerializer))) getOrElse counter[TradePayload]
+
     for (day <- interval.toDays) {
       log.info("Load data for: " + day)
       val count = Stats.time("trades_enumeration") {
-        loader.flatMap(_.enumTrades(day, counter))
+        loader.flatMap(_.enumTrades(day, i))
       }
       log.info("Loader report for day: " + day + "; Report: " + count)
     }
   }
+
+  def shutdown() {
+    log.info("Shutdown marketDB loader")
+    kestrelConfig.map(config => client.map(cl => {
+      cl.flush(config.tradesQueue)
+      cl.close()
+    }))
+  }
+
+  private[this] def assertKestrelRunning(conf: KestrelConfig) {
+    try {
+      new Socket(conf.host, conf.port)
+    } catch {
+      case e: ConnectException =>
+        println("Error: Kestrel must be running on host " + conf.host + "; port " + conf.port)
+        System.exit(1)
+    }
+  }
 }
+
+case class LoaderReport(count: Int)

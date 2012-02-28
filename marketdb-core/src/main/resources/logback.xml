@@ -5,7 +5,10 @@
         </layout>
     </appender>
 
-    <root level="trace">
+    <logger name="com.ergodicity.marketdb" level="TRACE" />
+
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>
+
 </configuration>

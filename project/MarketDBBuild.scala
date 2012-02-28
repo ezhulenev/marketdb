@@ -34,7 +34,8 @@ object MarketDBBuild extends Build {
     base = file("marketdb-loader"),
     dependencies = Seq(marketdbApi),
     settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.loader)
-  )
+  ).configs( IntegrationTest )
+    .settings( Defaults.itSettings : _*)
 
   // -- Settings
 

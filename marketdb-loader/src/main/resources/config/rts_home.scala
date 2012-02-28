@@ -1,4 +1,5 @@
-import com.ergodicity.marketdb.loader.{RtsTradeLoader, LoaderConfig}
+import com.ergodicity.marketdb.loader.KestrelConfig._
+import com.ergodicity.marketdb.loader.{KestrelConfig, RtsTradeLoader, LoaderConfig}
 import java.io.File
 
 new LoaderConfig {
@@ -13,4 +14,6 @@ new LoaderConfig {
   val pattern = "'/F/'YYYY'/FT'YYMMdd'.zip'"
 
   loader = Some(new RtsTradeLoader(dir, url, pattern))
+
+  kestrelConfig = Some(KestrelConfig("localhost", 22133, "trades"))
 }

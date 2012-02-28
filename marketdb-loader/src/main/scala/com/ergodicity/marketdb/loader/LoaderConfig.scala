@@ -9,6 +9,8 @@ class LoaderConfig extends ServerConfig[Loader] {
   val Format = DateTimeFormat.forPattern("yyyyMMdd")
 
   var loader: Option[TradeLoader] = None
+  
+  var kestrelConfig: Option[KestrelConfig] = None
 
   def apply(runtime: RuntimeEnvironment) = {
     if (!runtime.arguments.contains("from")) {
@@ -24,6 +26,8 @@ class LoaderConfig extends ServerConfig[Loader] {
     val from = Format.parseDateTime(runtime.arguments("from"));
     val until = Format.parseDateTime(runtime.arguments("until"));
 
-    new Loader(loader, from to until)
+    new Loader(loader, from to until, kestrelConfig)
   }
 }
+
+case class KestrelConfig(host: String, port: Int, tradesQueue: String)

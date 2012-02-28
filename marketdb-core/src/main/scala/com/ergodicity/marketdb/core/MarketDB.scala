@@ -9,8 +9,15 @@ import com.ergodicity.marketdb.uid.UIDProvider
 import org.hbase.async.{PutRequest, HBaseClient}
 import com.ergodicity.marketdb.{AsyncHBase, ByteArray, Ooops}
 import com.ergodicity.marketdb.model._
-import com.twitter.util.{Promise, Future, FuturePool}
 import com.twitter.ostrich.admin.{Service, RuntimeEnvironment}
+import java.util.concurrent.atomic.AtomicBoolean
+import com.twitter.conversions.time._
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.kestrel.protocol.Kestrel
+import com.twitter.finagle.kestrel.{ReadHandle, Client}
+import com.twitter.util.{JavaTimer, Promise, Future, FuturePool}
+import com.twitter.finagle.service.Backoff
+import com.twitter.ostrich.stats.Stats
 
 sealed trait TradeReaction
 
@@ -25,6 +32,7 @@ object MarketDB {
 
   var marketDB: MarketDB = null
   var runtime: RuntimeEnvironment = null
+  val stopped = new AtomicBoolean(false)
 
   def main(args: Array[String]) {
     try {
@@ -40,23 +48,73 @@ object MarketDB {
 }
 
 class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvider: UIDProvider,
+               val kestrelConfig: Option[KestrelConfig],
                val tradesTable: String) extends Service {
 
   val log = LoggerFactory.getLogger(classOf[MarketDB])
   log.info("Create marketDB for table: " + tradesTable)
+  log.info("marketDB Kestrel configuration: "+kestrelConfig)
 
   val ColumnFamily = ByteArray("id")
-  val UidThreadPoolSize = 50;
+  val UidThreadPoolSize = 10;
   val uidFuturePool = FuturePool(Executors.newFixedThreadPool(UidThreadPoolSize))
 
+  // -- Config Kestrel clients
+  val clients: Option[Seq[Client]] = kestrelConfig.map(_.hosts.map {
+    host =>
+      Client(ClientBuilder()
+        .codec(Kestrel())
+        .hosts(host)
+        .hostConnectionLimit(1) // process at most 1 item per connection concurrently
+        .buildFactory())
+  })
+
+  val readHandles: Option[Seq[ReadHandle]] = kestrelConfig.flatMap {
+    conf =>
+      val timer = new JavaTimer(isDaemon = true)
+      val retryBackoffs = Backoff.const(10.milliseconds)
+      clients map (_.map {
+        _.readReliably(conf.tradesQueue, timer, retryBackoffs)
+      })
+  }
+
+  val readHandle: Option[ReadHandle] = readHandles.map(ReadHandle.merged(_))
 
   def start() {
     log.info("Start marketDB")
+    // Attach an async error handler that prints to stderr
+    readHandle.map(_.error foreach { e =>
+        if (!MarketDB.stopped.get) System.err.println("zomg! got an error " + e)
+    })
+
+    // Attach an async message handler that prints the messages to stdout
+    readHandle.map(_.messages foreach { msg =>
+        try {
+          import sbinary._
+          import Operations._
+          import TradeProtocol._
+          val payload = fromByteArray[TradePayload](msg.bytes.array())
+          Stats.incr("trades_received", 1)
+          addTrade(payload) onSuccess {reaction =>
+            log.info("Trade reaction: " + reaction)
+            reaction match {
+              case TradePersisted(pl) => Stats.incr("trades_persisted", 1)
+              case TradeRejected(cause) => Stats.incr("trades_rejected2", 1)
+            }            
+          }
+        } finally {
+          msg.ack() // if we don't do this, no more msgs will come to us
+        }
+    })
   }
 
   def shutdown() {
     log.info("Shutdown marketDB")
     client.shutdown()
+    MarketDB.stopped.set(true)
+    readHandle  map {_.close()}
+    clients map {_.foreach {_.close()}}
+    log.info("marketDB stopped")
   }
 
   def addTrade(payload: TradePayload) = {
@@ -134,6 +192,7 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
 
   private def handleRejectedTrade(payload: TradePayload, cause: NonEmptyList[Ooops]) {
     log.info("TradePayload rejected: " + payload + "; Cause: " + cause)
+    Stats.incr("trades_rejected", 1)
   }
 
 }

@@ -6,6 +6,8 @@ import org.hbase.async.HBaseClient
 import com.ergodicity.marketdb.uid.{UIDCache, UIDProvider}
 import com.ergodicity.marketdb.ByteArray
 import org.slf4j.LoggerFactory
+import com.twitter.ostrich.stats.Stats
+import scala.None
 
 class MarketDBConfig extends ServerConfig[MarketDB] {
   val log = LoggerFactory.getLogger(classOf[MarketDBConfig])
@@ -14,6 +16,8 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
   var tradesTable = "market-trades"
   var uidTable = "market-uid"
   
+  var kestrelConfig: Option[KestrelConfig] = None
+
   def apply(runtime: RuntimeEnvironment) = {
     log.info("Build new marketDB configuration")
 
@@ -23,6 +27,14 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
     val marketUIDProvider = new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Market"), MarketIdWidth)
     val codeUIDProvider =  new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Code"), CodeIdWidth)
 
-    new MarketDB(client, marketUIDProvider, codeUIDProvider, tradesTable)
+    // Add statistics for UID caching
+    Stats.addGauge("marketUid_cache_hits") {marketUIDProvider.cacheHits}
+    Stats.addGauge("marketUid_cache_misses") {marketUIDProvider.cacheMisses}
+    Stats.addGauge("codeUid_cache_hits") {codeUIDProvider.cacheHits}
+    Stats.addGauge("codeUid_cache_misses") {codeUIDProvider.cacheMisses}
+
+    new MarketDB(client, marketUIDProvider, codeUIDProvider, kestrelConfig, tradesTable)
   }
 }
+
+case class KestrelConfig(hosts: Seq[String], tradesQueue: String)
