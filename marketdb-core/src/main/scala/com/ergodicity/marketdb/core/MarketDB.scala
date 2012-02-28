@@ -56,7 +56,7 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
   log.info("marketDB Kestrel configuration: "+kestrelConfig)
 
   val ColumnFamily = ByteArray("id")
-  val UidThreadPoolSize = 10;
+  val UidThreadPoolSize = 1;
   val uidFuturePool = FuturePool(Executors.newFixedThreadPool(UidThreadPoolSize))
 
   // -- Config Kestrel clients

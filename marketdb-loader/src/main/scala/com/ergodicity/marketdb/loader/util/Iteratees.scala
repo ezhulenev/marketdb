@@ -44,7 +44,7 @@ object Iteratees {
     }
 
     def step(is: LoaderReport, e: E)(s: Input[E]): IterV[E, LoaderReport] = {
-      s(el = e2 => {pushToChannel(e2); if (is.count < 10000) Cont(step(LoaderReport(is.count + 1), e2)) else Done(is, EOF[E])},
+      s(el = e2 => {pushToChannel(e2); if (is.count < 10) Cont(step(LoaderReport(is.count + 1), e2)) else Done(is, EOF[E])},
         empty = Cont(step(is, e)),
         eof = Done(is, EOF[E]))
     }
@@ -85,7 +85,7 @@ object OfferOnce {
 
     def poll() = ref.getAndSet(None).map(() => _)
 
-    def enqueue(setter: this.type#Setter) = () => Unit
+    def enqueue(setter: this.type#Setter) = null
   }
   
 }
