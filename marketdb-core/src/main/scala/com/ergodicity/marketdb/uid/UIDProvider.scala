@@ -7,6 +7,9 @@ import Scalaz._
 import org.slf4j.LoggerFactory
 import com.ergodicity.marketdb.uid._
 import com.ergodicity.marketdb.{ByteArray, Ooops}
+import com.twitter.util.{Promise, Future}
+import java.util.ArrayList
+import com.ergodicity.marketdb.AsyncHBase._
 
 
 /**
@@ -25,13 +28,13 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
 
   private val log = LoggerFactory.getLogger(classOf[UIDProvider])
 
-  /** The single column family used by this class. */
-  private val IdFamily = ByteArray('i','d')
-  /** The single column family used by this class. */
-  private val NameFamily = ByteArray('n','a','m','e')
-  /** Row key of the special row used to track the max ID already assigned. */
+  /**The single column family used by this class. */
+  private val IdFamily = ByteArray('i', 'd')
+  /**The single column family used by this class. */
+  private val NameFamily = ByteArray('n', 'a', 'm', 'e')
+  /**Row key of the special row used to track the max ID already assigned. */
   private val MaxIdRow = ByteArray(Array[Byte](0))
-  /** Max attempts to execute put request*/
+  /**Max attempts to execute put request*/
   private val MaxAttemptsCreateId = 3
   private val MaxAttemptsPut = 3
 
@@ -53,91 +56,100 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   @volatile
   var cacheMisses: Int = 0
 
-  def findName(id: ByteArray) = {
-    log.info("Get name: " + id)
-    withName(id)(_.map(UniqueId(_, id)))
+  def getName(id: ByteArray) = {
+    getNameInternal(id) {name =>
+        val uid = name.map(UniqueId(_, id))
+        uid.map(uid => cache.cache(uid.name, uid.id)).map({
+          case Success(cached) => cached
+          case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
+        })
+    }
   }
 
-  def findId(name: String) = {
-    log.info("Get id: " + name)
-    withId(name)(_.map(UniqueId(name, _)))
+  def getId(name: String) = {
+    getIdInternal(name) { id =>
+        val uid = id.map(UniqueId(name, _))
+        uid.map(uid => cache.cache(uid.name, uid.id)).map({
+          case Success(cached) => cached
+          case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
+        })
+    }
   }
 
   def provideId(name: String) = {
     val tryGetOrCreate = () => try {
-      log.debug(" Try get or create id for name="+name)
+      log.debug(" Try get or create id for name=" + name)
       getOrCreateId(name)
     } catch {
-      case e: HBaseException => Ooops("Create id faild: " + e).failNel[UniqueId]
+      case e: HBaseException =>
+        log.error("Error: "+e)
+        Ooops("Create id faild: " + e).failNel[UniqueId]
     }
 
     retryUntilValid(MaxAttemptsCreateId)(tryGetOrCreate)
   }
 
-  private def withName(id: ByteArray)(f: Option[String] => Option[UniqueId]): ValidationNEL[Ooops, Option[UniqueId]] = {
-    // First check id width and fail if error occured
-    passCheckOrFail(id)(validateIdWidth)
+  private def getNameInternal[R](id: ByteArray)(f: Option[String] => R): Future[R] = {
+    // First check id width and fail if error occurred
+    validateIdWidth(id)
 
     val cachedName = cache.name(id)
     cachedName match {
-      case Some(_) => cacheHits += 1; f(cachedName).successNel[Ooops]
-      case None =>
-        cacheMisses += 1;
-        val uid = withNameFromHBase(id)(opt => f(opt.map(_.asString)))
-        // Add to cache with validation
-        uid.flatMap(_.map(newUid => cache.cache(newUid.name, newUid.id)).map(_.map(Some(_))) getOrElse uid)
+      case Some(_) => cacheHits += 1; Future {f(cachedName)}
+      case None => cacheMisses += 1; getNameFromHBase(id)(opt => f(opt.map(_.asString)))
     }
   }
 
-  private def withId(name: String)(f: Option[ByteArray] => Option[UniqueId]): ValidationNEL[Ooops, Option[UniqueId]] = {
+  private def getIdInternal[R](name: String)(f: Option[ByteArray] => R): Future[R] = {
     val cachedId = cache.id(name)
     cachedId match {
-      case Some(_) => cacheHits += 1; f(cachedId).successNel[Ooops]
-      case None =>
-        cacheMisses += 1;
-        val uid = withIdFromHBase(name)(f)
-        // Add to cache with validation
-        uid.flatMap(_.map(newUid => cache.cache(newUid.name, newUid.id)).map(_.map(Some(_))) getOrElse uid)
+      case Some(_) => cacheHits += 1; Future {f(cachedId)}
+      case None => cacheMisses += 1; getIdFromHBase(name)(f)
     }
   }
 
-  private def withNameFromHBase[R](id: ByteArray)(f: Option[ByteArray] => R): ValidationNEL[Ooops, R] = {
-    withHBaseValue(id, NameFamily)(f)
+  private def getNameFromHBase[R](id: ByteArray)(f: Option[ByteArray] => R): Future[R] = {
+    getHBaseValue(id, NameFamily)(f)
   }
 
-  private def withIdFromHBase[R](name: String)(f: Option[ByteArray] => R): ValidationNEL[Ooops, R] = {
-    val validation = withHBaseValue(ByteArray(name), IdFamily)(id => id)
-    val validatedWidth = validation.flatMap(_.map(validateIdWidth _).map(_.map(Some(_))) getOrElse validation)
-
-    validatedWidth.map(f)
+  private def getIdFromHBase[R](name: String)(f: Option[ByteArray] => R): Future[R] = {
+    val validation = getHBaseValue(ByteArray(name), IdFamily)(id => id)
+    validation map (opt => f(opt.map(validateIdWidth(_))))
   }
 
-  private def withHBaseValue[R](key: ByteArray, family: ByteArray, lock: Option[RowLock] = None)
-                               (f: Option[ByteArray] => R): ValidationNEL[Ooops, R] = {
+  private def getHBaseValue[R](key: ByteArray, family: ByteArray, lock: Option[RowLock] = None)
+                               (f: Option[ByteArray] => R): Future[R] = {
+
     val get = new GetRequest(table, key).family(family).qualifier(kind)
     lock.map(get.withRowLock(_))
 
-    try {
-      val row = client.get(get).joinUninterruptibly
-      val value = if (row == null || row.isEmpty) f(None) else f(Some(ByteArray(row.get(0).value())))
-      value.successNel[Ooops]
-    } catch {
-      case e: HBaseException => Ooops("HBase failed", Some(e)).failNel[R]
-      case e: Exception => Ooops("HBase 'get' failed", Some(e)).failNel[R]
+    val deferred = client.get(get)
+
+    val promise = new Promise[R]
+
+    deferred addCallback {
+      (row: ArrayList[KeyValue]) =>
+        val value = if (row == null || row.isEmpty) f(None) else f(Some(ByteArray(row.get(0).value())))
+        promise.setValue(value)
     }
+    deferred addErrback {
+      (e: Throwable) => promise.setException(e)
+    }
+
+    promise
   }
 
-  private def validateIdWidth(id: ByteArray): ValidationNEL[Ooops, ByteArray] = {
+  private def validateIdWidth(id: ByteArray): ByteArray = {
     if (id.length == idWidth)
-      id.successNel[Ooops]
+      id
     else
-      Ooops("Wrong id.length = " + id.length + " which is != " + idWidth + " required for '" + kind + '\'').failNel[ByteArray]
+      throw new RuntimeException("Wrong id.length = " + id.length + " which is != " + idWidth + " required for '" + kind.asString + '\'')
   }
 
   private def passCheckOrFail[E, A](value: A)(validate: A => ValidationNEL[E, A], aggregatedErr: Option[NonEmptyList[E]] = None): A = {
     validate(value) match {
       case Success(suc) => suc
-      case Failure(err) => 
+      case Failure(err) =>
         val aggregatedErrors = aggregatedErr.map(err <::: _) getOrElse err
         throw new RuntimeException(aggregatedErrors.toString())
     }
@@ -177,7 +189,6 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
    * @param id generated id
    */
   private def validateGeneratedIdValue(id: ByteArray): ValidationNEL[Ooops, ByteArray] = {
-
     // Verify that we're going to drop bytes that are 0.
     val leftBytesAreZero = id.slice(0, id.length - idWidth).foldLeft(true)((p, b) => p && (b == 0))
     val valid = if (leftBytesAreZero)
@@ -185,26 +196,24 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
     else
       Ooops("All Unique IDs for " + kind + " on " + idWidth + " bytes are already assigned!").failNel[ByteArray]
 
-    validateIdWidth(id) <+> valid
+    valid
   }
 
   private def getOrCreateId(name: String): ValidationNEL[Ooops, UniqueId] = {
-    val uid: ValidationNEL[Ooops, Option[UniqueId]] = withId(name)(_.map(id => UniqueId(name, id)))
-
-    uid flatMap {
-      _.map(_.successNel[Ooops]) getOrElse {
+    val uid: Option[ValidationNEL[Ooops, UniqueId]] = getId(name).get().map(_.successNel[Ooops])
+    uid getOrElse {
         // Else try to ackquire row lock to create new id
         withRowLock {
           lock =>
           // Verify that the row still doesn't exist (to avoid re-creating it if
           // it got created before we acquired the lock due to a race condition).
-            val uid = withId(name)(_.map(id => UniqueId(name, id)))
-            uid flatMap {
-              _.map(_.successNel[Ooops]) getOrElse {
+            val uid = getId(name).get().map(_.successNel[Ooops])
+
+            uid getOrElse {
                 // We verified that no one created id, so we need to do it here
 
                 // Assign an ID.
-                val assignedId = withHBaseValue(MaxIdRow, IdFamily, Some(lock)) {
+                val (id, row) = getHBaseValue(MaxIdRow, IdFamily, Some(lock)) {
                   currentMaxId: Option[ByteArray] =>
                     val id = currentMaxId.map(existingMaxId => {
                       val bs = passCheckOrFail(existingMaxId)(validateCurrentMaxIdLength)
@@ -212,12 +221,7 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
                     }) getOrElse 1l
                     val row = ByteArray(Bytes.fromLong(id))
                     (id, row)
-                }
-
-                val (id, row) = assignedId match {
-                  case Success((id, row)) => (id, row)
-                  case Failure(e) => throw new RuntimeException("Can't assing new id: "+e)
-                }
+                }.get()
 
                 // Update Max id in HBase
                 val updateMaxId = new PutRequest(table, MaxIdRow, IdFamily, kind, row, lock)
@@ -251,10 +255,8 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
                 cache.cache(name, shrinkRow)
               }
             }
-        }
       }
     }
-  }
 
   private def withRowLock[R](f: RowLock => ValidationNEL[Ooops, R]): ValidationNEL[Ooops, R] = {
     val lock = client.lockRow(new RowLockRequest(table.toArray, MaxIdRow.toArray)).joinUninterruptibly()
@@ -269,6 +271,12 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   }
 
   override def toString = "UIDProvider(" + table + ", " + kind + ", " + idWidth + ")"
+}
+
+class PendingRequests {
+  /*private val findNameCache = Ref(Map[String, Future[Option[UniqueId]]])
+  private val findIdCache = Ref(Map[ByteArray, Future[Option[UniqueId]]])
+  private val provideIdCache = Ref(Map[String, Future[UniqueId]])*/
 }
 
 class UIDCache {
@@ -287,6 +295,8 @@ class UIDCache {
   def cachedIds = idCache.single().keySet
 
   def cache(name: String, id: ByteArray): ValidationNEL[Ooops, UniqueId] = {
+    val log = LoggerFactory.getLogger(classOf[UIDCache])
+    log.info("Cache: "+name+":"+id)
     atomic {
       implicit txn =>
 

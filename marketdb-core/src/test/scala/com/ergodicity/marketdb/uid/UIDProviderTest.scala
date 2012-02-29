@@ -8,17 +8,15 @@ import org.mockito.Matchers._
 import org.junit.Assert._
 import org.slf4j.LoggerFactory
 import org.powermock.core.classloader.annotations.{PowerMockIgnore, PrepareForTest}
-import com.stumbleupon.async.Deferred
 import org.hbase.async._
 import scalaz._
 import Scalaz._
 import java.util.{Arrays, ArrayList}
-import java.lang.reflect.Field
-import org.hamcrest.{Description, BaseMatcher}
 import org.scalatest.Assertions._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import com.ergodicity.marketdb.{HBaseMatchers, ByteArray, Ooops}
+import com.stumbleupon.async.{Callback, Deferred}
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -46,13 +44,13 @@ class UIDProviderTest extends HBaseMatchers {
 
     when(client.get(anyGet)).thenReturn(Deferred.fromResult(kvs))
 
-    var response = provider.findName(id)
+    var response = provider.getName(id).get()
     log.info("Response: " + response)
 
     assert(responseIsValid(response))
 
     // Should be a cache hit ...
-    response = provider.findName(id)
+    response = provider.getName(id).get()
     assert(responseIsValid(response))
 
     assertEquals(1, provider.cacheHits)
@@ -62,10 +60,10 @@ class UIDProviderTest extends HBaseMatchers {
 
     verify(client, only()).get(anyGet)
 
-    def responseIsValid = {response: ValidationNEL[Ooops, Option[UniqueId]] =>
-      log.info("Validate response: "+response)
+    def responseIsValid = {response: Option[UniqueId] =>
+      log.info("Check response: "+response)
       response match {
-        case Success(Some(UniqueId(n, i))) => i == id && n == name
+        case Some(UniqueId(n, i)) => i == id && n == name
         case _ => false
       }
     }
@@ -88,19 +86,15 @@ class UIDProviderTest extends HBaseMatchers {
     when(client.get(anyGet)).thenThrow(hbe).thenReturn(Deferred.fromResult(kvs))
 
     // First request should fails
-    val failed = provider.findName(id)
-    assert(failed match {
-      case Failure(e) =>
-        log.error("Failure: "+e)
-        true
-      case _ => false
-    })
+    intercept[HBaseException] {
+      provider.getName(id)
+    }
 
     // Second request should be success
-    val response = provider.findName(id)
+    val response = provider.getName(id).get()
     log.info("Response#1: " + response)
     assert(response match {
-      case Success(Some(UniqueId(n, i))) => n == name && i == id
+      case Some(UniqueId(n, i)) => n == name && i == id
       case _ => false
     })
 
@@ -132,19 +126,15 @@ class UIDProviderTest extends HBaseMatchers {
       .thenReturn(Deferred.fromResult(kvs))                         // Second returns valid result
 
     // First request should fail
-    val failed = uid.findName(id)
-    assert(failed match {
-      case Failure(e) =>
-        log.error("Failure: "+e)
-        true
-      case _ => false
-    })
+    intercept[RuntimeException] {
+      uid.getName(id).get()
+    }
 
     // Second request should be success
-    val response = uid.findName(id)
+    val response = uid.getName(id).get()
     log.info("Response#1: " + response)
     response match {
-      case Success(Some(UniqueId(uName, uId))) => {
+      case Some(UniqueId(uName, uId)) => {
         assert(uName == name)
         assert(uId == id)
       }
@@ -184,20 +174,15 @@ class UIDProviderTest extends HBaseMatchers {
         .thenReturn(UniqueId(name, id).successNel[Ooops]);        // Second success
 
     // First request should fail
-    val failed = provider.findName(id)
-    assert(failed match {
-      case Failure(e) =>
-        log.error("Failure: "+e)
-        true
-      case _ => false
-    })
-
+    intercept[RuntimeException] {
+      provider.getName(id).get()
+    }
 
     // Second request should be success
-    val response = provider.findName(id)
+    val response = provider.getName(id).get()
     log.info("Response#1: " + response)
     response match {
-      case Success(Some(UniqueId(uName, uId))) => {
+      case Some(UniqueId(uName, uId)) => {
         assert(uName == name.toString)
         assert(uId == id)
       }
@@ -221,10 +206,10 @@ class UIDProviderTest extends HBaseMatchers {
 
     val noSuchId = ByteArray("123")
 
-    val response = provider.findName(noSuchId)
+    val response = provider.getName(noSuchId).get()
     log.info("Response: " + response)
     response match {
-      case Success(None) => assert(true)
+      case None => assert(true)
       case _ => assert(false)
     }
   }
@@ -238,7 +223,7 @@ class UIDProviderTest extends HBaseMatchers {
     val invalidId = ByteArray("TooLongId")
 
     intercept[RuntimeException] {
-      provider.findName(invalidId)
+      provider.getName(invalidId)
     }
   }
 
@@ -257,11 +242,11 @@ class UIDProviderTest extends HBaseMatchers {
     when(client.get(anyGet)).thenReturn(Deferred.fromResult(kvs))
 
     // First request should be propagated to HBase
-    var response = provider.findId(name)
+    var response = provider.getId(name).get()
     assert(responseIsValid(response))
 
     // Second should be a cache hit ...
-    response = provider.findId(name)
+    response = provider.getId(name).get()
     assert(responseIsValid(response))
 
     // Validate cache state
@@ -274,10 +259,10 @@ class UIDProviderTest extends HBaseMatchers {
     verify(client, only()).get(anyGet)
 
     // Response validation helper
-    def responseIsValid = {response: ValidationNEL[Ooops, Option[UniqueId]] =>
+    def responseIsValid = {response: Option[UniqueId] =>
       log.info("Validate response: "+response)
       response match {
-        case Success(Some(UniqueId(n, i))) => n == name.toString() && i == id
+        case Some(UniqueId(n, i)) => n == name.toString && i == id
         case _ => false
       }
     }
@@ -296,13 +281,9 @@ class UIDProviderTest extends HBaseMatchers {
 
     when(client.get(any(classOf[GetRequest]))).thenReturn(Deferred.fromResult(kvs))
 
-    val failed = uid.findId(name)
-    assert(failed match {
-      case Failure(e) =>
-        log.error("Failure: "+e)
-        true
-      case _ => false
-    })
+    intercept[RuntimeException] {
+      uid.getId(name).get()
+    }
   }
 
   @Test
@@ -313,9 +294,9 @@ class UIDProviderTest extends HBaseMatchers {
 
     val noSuchName = "NoSuchName"
 
-    val response = provider.findId(noSuchName)
+    val response = provider.getId(noSuchName).get()
     response match {
-      case Success(None) => assert(true)
+      case None => assert(true)
       case _ => assert(false)
     }
   }
@@ -374,7 +355,8 @@ class UIDProviderTest extends HBaseMatchers {
     // Ackquire lock
     when(client.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(lock))
     // Get returns null
-    when(client.get(anyGet)).thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null))
+    when(client.get(anyGet))
+      .thenAnswer(AnswerWithValue(() => Deferred.fromResult[ArrayList[KeyValue]](null)))
     // Put successfuly
     when(client.put(anyPut)).thenReturn(Deferred.fromResult[AnyRef](null))
 
@@ -383,6 +365,7 @@ class UIDProviderTest extends HBaseMatchers {
 
     // First request should put new id
     var response = provider.provideId("Name")
+    log.info("First response: " + response)
     assertTrue("Response doesn't match expectable", response match {
       case Success(UniqueId("Name", i)) => i == id
       case _ => log.error("Bad response: "+response); false
@@ -396,9 +379,9 @@ class UIDProviderTest extends HBaseMatchers {
     })
 
     // Third response inverted
-    val nameResponse = provider.findName(id)
+    val nameResponse = provider.getName(id).get()
     assertTrue("Response doesn't match expectable", nameResponse match {
-      case Success(Some(UniqueId("Name", i))) => i == id
+      case Some(UniqueId("Name", i)) => i == id
       case _ => log.error("Bad response: "+response); false
     })
     
@@ -415,7 +398,10 @@ class UIDProviderTest extends HBaseMatchers {
 
     val cache = new UIDCache
     val uid = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    // 3 Deffered == MaxRetryCount == 3
     when(client.get(anyGet)).thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null))
+      .thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null))
+      .thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null))
 
     val hbe = fakeHBaseException
     when(client.lockRow(anyRowLockRequest)).thenThrow(hbe)
@@ -443,14 +429,16 @@ class UIDProviderTest extends HBaseMatchers {
     val clientB = mock(classOf[HBaseClient])
     val providerB = new UIDProvider(clientB, cache, ByteArray(Table), ByteArray(Kind), 3)
 
+    log.info("CLIENT A: "+clientA)
+    log.info("CLIENT B: "+clientB)
+
     val id = ByteArray(Array[Byte](0,0,5))
     val name = "Foo"
 
     val d = mock(classOf[Deferred[ArrayList[KeyValue]]])
     when(clientA.get(anyGet)).thenReturn(d)
 
-    val theRace = new Answer[Array[Byte]] {
-      def answer(invocation: InvocationOnMock) = {
+    val theRace: () => ArrayList[KeyValue] = () => {
         // While answering A's first Get, B doest a full getOrCreateId.
         val uid = providerB.provideId(name)
         assertTrue(uid match {
@@ -459,15 +447,29 @@ class UIDProviderTest extends HBaseMatchers {
         })
         null
       }
-    }
 
     val kvs1 = new ArrayList[KeyValue](1)
     kvs1.add(new KeyValue(name, IdFamily, Kind, id))
-    when(d.joinUninterruptibly).thenAnswer(theRace).thenReturn(kvs1)
+
+    // when(d.joinUninterruptibly).thenAnswer(theRace).thenReturn(kvs1)
+
+    when(d.addCallback(any())).thenAnswer(new Answer[Deferred[Unit]] {
+      def answer(invocation: InvocationOnMock) = {
+        val arguments = invocation.getArguments
+        val cb = arguments(0).asInstanceOf[Callback[Unit, ArrayList[KeyValue]]]
+        Deferred.fromResult(cb.call(theRace()))
+      }
+    }).thenAnswer(new Answer[Deferred[Unit]] {
+      def answer(invocation: InvocationOnMock) = {
+        val arguments = invocation.getArguments
+        val cb = arguments(0).asInstanceOf[Callback[Unit, ArrayList[KeyValue]]]
+        Deferred.fromResult(cb.call(kvs1))
+      }
+    })
 
     val fakeLockA = mock(classOf[RowLock])
     when(clientA.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLockA))
-    when(clientB.get(anyGet)).thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null))
+    when(clientB.get(anyGet)).thenAnswer(AnswerWithValue(() => Deferred.fromResult[ArrayList[KeyValue]](null)))
 
     val fakeLockB = mock(classOf[RowLock])
     when(clientB.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLockB))
@@ -514,7 +516,7 @@ class UIDProviderTest extends HBaseMatchers {
     when(client.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLock));
 
     when(client.get(anyGet))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null));
+      .thenAnswer(AnswerWithValue(() => Deferred.fromResult[ArrayList[KeyValue]](null)))
 
     // Update once HBASE-2292 is fixed:
     whenFakeIcvThenReturn(client, java.lang.Byte.MAX_VALUE - java.lang.Byte.MIN_VALUE);
@@ -527,9 +529,9 @@ class UIDProviderTest extends HBaseMatchers {
     })
 
     // The +1 below is due to the whenFakeIcvThenReturn() hack.
-    verify(client, times((2+1) * 5)).get(anyGet);// Initial Get + double check.
-    verify(client, times(5)).lockRow(anyRowLockRequest);      // The .maxid row.
-    verify(client, times(5)).unlockRow(fakeLock);     // The .maxid row.
+    verify(client, times((2+1) * 3)).get(anyGet);// Initial Get + double check.
+    verify(client, times(3)).lockRow(anyRowLockRequest);      // The .maxid row.
+    verify(client, times(3)).unlockRow(fakeLock);     // The .maxid row.
   }
 
   @Test
@@ -544,7 +546,7 @@ class UIDProviderTest extends HBaseMatchers {
     when(client.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLock));
 
     when(client.get(anyGet))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null));
+      .thenAnswer(AnswerWithValue(() => Deferred.fromResult[ArrayList[KeyValue]](null)))
 
     // Update once HBASE-2292 is fixed:
     val kvs = new ArrayList[KeyValue](1);
@@ -585,7 +587,7 @@ class UIDProviderTest extends HBaseMatchers {
     when(client.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLock));
 
     when(client.get(anyGet))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null));
+      .thenAnswer(AnswerWithValue(() => Deferred.fromResult[ArrayList[KeyValue]](null)))
 
     when(client.put(anyPut)).thenReturn(Deferred.fromResult[AnyRef](null));
 

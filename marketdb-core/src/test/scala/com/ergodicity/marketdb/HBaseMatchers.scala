@@ -5,6 +5,8 @@ import org.hamcrest.{Description, BaseMatcher}
 import java.util.Arrays
 import java.lang.reflect.Field
 import org.hbase.async.{GetRequest, HBaseRpc, PutRequest}
+import org.mockito.stubbing.Answer
+import org.mockito.invocation.InvocationOnMock
 
 trait HBaseMatchers {
 
@@ -36,6 +38,10 @@ trait HBaseMatchers {
     } catch {
       case e: Exception => throw new RuntimeException("failed to extract the key out of " + rpc, e)
     }
+  }
+
+  protected def AnswerWithValue[A](v: () => A) = new Answer[A] {
+    def answer(invocation: InvocationOnMock) = v()
   }
 
 }

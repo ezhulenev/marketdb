@@ -32,13 +32,13 @@ class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecord
       val provider = createNewProvider
 
       when("send GetId request")
-      val uid = recordTime("Request for id", () => provider.findId(unknownName))
+      val uid = recordTime("Request for id", () => provider.getId(unknownName).get())
 
       then("None should be returned")
       log.info("Unique id: " + uid)
 
       assert(uid match {
-        case Success(None) => true
+        case None => true
         case _ => false
       })
     }
@@ -64,20 +64,20 @@ class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecord
       val generatedUid = uid.toOption.get
 
       and("GetId should return generated id")
-      val gotId = recordTime("Get generated id by name", () => provider.findId(name))
+      val gotId = recordTime("Get generated id by name", () => provider.getId(name).get())
       log.info("Got id: " + gotId)
 
       assert(gotId match {
-        case Success(Some(UniqueId(n, i))) => n == name && i == generatedUid.id
+        case Some(UniqueId(n, i)) => n == name && i == generatedUid.id
         case _ => false
       })
 
       and("GetName should return initial name")
-      val gotName = recordTime("Get name by generated id", () => provider.findName(generatedUid.id))
+      val gotName = recordTime("Get name by generated id", () => provider.getName(generatedUid.id).get())
       log.info("Got name: " + gotName)
 
       assert(gotName match {
-        case Success(Some(UniqueId(n, i))) => n == name && i == generatedUid.id
+        case Some(UniqueId(n, i)) => n == name && i == generatedUid.id
         case _ => false
       })
     }
