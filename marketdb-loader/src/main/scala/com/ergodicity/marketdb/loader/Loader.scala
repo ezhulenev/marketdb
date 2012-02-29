@@ -24,9 +24,6 @@ object Loader {
       runtime = RuntimeEnvironment(this, args)
       loader = runtime.loadRuntimeConfig[Loader]()
       loader.start()
-      Thread.sleep(TimeUnit.SECONDS.toMillis(5))
-      loader.shutdown()
-      System.exit(0)
     } catch {
       case e =>
         log.error("Exception during startup; exiting!", e)
@@ -78,11 +75,6 @@ class Loader(loader: Option[TradeLoader], interval: Interval, kestrelConfig: Opt
   }
 
   def shutdown() {
-    log.info("Shutdown marketDB loader")
-    kestrelConfig.map(config => client.map(cl => {
-      cl.flush(config.tradesQueue)
-      cl.close()
-    }))
   }
 
   private[this] def assertKestrelRunning(conf: KestrelConfig) {

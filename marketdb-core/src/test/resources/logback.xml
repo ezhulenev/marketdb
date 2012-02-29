@@ -5,6 +5,8 @@
         </layout>
     </appender>
 
+    <logger name="com.ergodicity.marketdb" level="TRACE" />
+
     <root level="debug">
         <appender-ref ref="STDOUT" />
     </root>

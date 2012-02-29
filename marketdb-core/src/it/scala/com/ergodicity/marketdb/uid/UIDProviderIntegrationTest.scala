@@ -1,6 +1,5 @@
 package com.ergodicity.marketdb.uid
 
-import scalaz._
 import java.util.Random
 import java.lang.StringBuffer
 import org.scalatest.{GivenWhenThen, Spec}
@@ -50,34 +49,32 @@ class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecord
       val provider = createNewProvider
 
       when("send GetOrCreate request")
-      val uid = recordTime("Create new id", () => provider.provideId(name))
+      val uid = recordTime("Create new id", () => provider.provideId(name)).get()
 
       then("new UniqueID should be generated")
       log.info("Unique id: " + uid)
 
       // Verify name equals
       assert(uid match {
-        case Success(UniqueId(n, i)) => n == name
+        case UniqueId(n, i) => n == name
         case _ => false
       })
-
-      val generatedUid = uid.toOption.get
 
       and("GetId should return generated id")
       val gotId = recordTime("Get generated id by name", () => provider.getId(name).get())
       log.info("Got id: " + gotId)
 
       assert(gotId match {
-        case Some(UniqueId(n, i)) => n == name && i == generatedUid.id
+        case Some(UniqueId(n, i)) => n == name && i == uid.id
         case _ => false
       })
 
       and("GetName should return initial name")
-      val gotName = recordTime("Get name by generated id", () => provider.getName(generatedUid.id).get())
+      val gotName = recordTime("Get name by generated id", () => provider.getName(uid.id).get())
       log.info("Got name: " + gotName)
 
       assert(gotName match {
-        case Some(UniqueId(n, i)) => n == name && i == generatedUid.id
+        case Some(UniqueId(n, i)) => n == name && i == uid.id
         case _ => false
       })
     }

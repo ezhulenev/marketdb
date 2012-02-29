@@ -6,16 +6,16 @@ import org.powermock.core.classloader.annotations.{PrepareForTest, PowerMockIgno
 import com.stumbleupon.async.Deferred
 import org.slf4j.LoggerFactory
 
-import scalaz._
-import Scalaz._
 import org.mockito.Mockito._
 import org.mockito.Matchers._
 import org.junit.Test
 import org.joda.time.DateTime
 import com.ergodicity.marketdb.uid.{UniqueId, UIDProvider}
 import org.hbase.async._
-import com.ergodicity.marketdb.{HBaseMatchers, ByteArray, Ooops}
+import com.ergodicity.marketdb.{HBaseMatchers, ByteArray}
 import com.ergodicity.marketdb.model._
+import com.twitter.util.Future
+import org.scalatest.Assertions._
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -45,38 +45,28 @@ class MarketDbTest extends HBaseMatchers {
   @Test
   def testTradeRejectedForUidValidationError() {
     // Init mocks
-    when(marketUidProvider.provideId("RTS")).thenReturn(Ooops("Market UID error").failNel[UniqueId])
-    when(codeUidProvider.provideId("RIH")).thenReturn(Ooops("Code UID error").failNel[UniqueId])
+    when(marketUidProvider.provideId("RTS")).thenThrow(mock(classOf[RuntimeException]))
+    when(codeUidProvider.provideId("RIH")).thenThrow(mock(classOf[RuntimeException]))
 
     // Execute
-    val reaction = marketDb.addTrade(payload).apply()
-
-    log.info("Trade reaction: "+reaction)
-
-    assert(reaction match {
-      case TradeRejected(err) => true
-      case _ => false
-    })
+    intercept[RuntimeException] {
+        marketDb.addTrade(payload).apply()
+    }
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
-    verify(codeUidProvider).provideId("RIH")
   }
 
   @Test
   def testTradeRejectedForUidException() {
     // Init mocks
-    when(marketUidProvider.provideId("RTS")).thenReturn(UniqueId("RTS", ByteArray('0')).successNel[Ooops])
+    when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
     when(codeUidProvider.provideId("RIH")).thenThrow(new RuntimeException("Test UID exception"))
 
     // Execute
-    val reaction = marketDb.addTrade(payload).apply()
-
-    log.info("Trade reaction: "+reaction)
-    assert(reaction match {
-      case TradeRejected(err) => true
-      case _ => false
-    })
+    intercept[RuntimeException] {
+      marketDb.addTrade(payload).apply()
+    }
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
@@ -86,17 +76,13 @@ class MarketDbTest extends HBaseMatchers {
   @Test
   def testTradeRejectedForInvalidUidWidth() {
     // Init mocks
-    when(marketUidProvider.provideId("RTS")).thenReturn(UniqueId("RTS", ByteArray("TooLong")).successNel[Ooops])
-    when(codeUidProvider.provideId("RIH")).thenReturn(UniqueId("RIH", ByteArray(0, 0, 1)).successNel[Ooops])
+    when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray("TooLong"))})
+    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
 
     // Execute
-    val reaction = marketDb.addTrade(payload).apply()
-
-    log.info("Trade reaction: "+reaction)
-    assert(reaction match {
-      case TradeRejected(err) => true
-      case _ => false
-    })
+    intercept[RuntimeException] {
+      marketDb.addTrade(payload).apply()
+    }
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
@@ -106,18 +92,14 @@ class MarketDbTest extends HBaseMatchers {
   @Test
   def testTradeRejectedForHBaseFailure() {
     // Init mocks
-    when(marketUidProvider.provideId("RTS")).thenReturn(UniqueId("RTS", ByteArray('0')).successNel[Ooops])
-    when(codeUidProvider.provideId("RIH")).thenReturn(UniqueId("RIH", ByteArray(0, 0, 1)).successNel[Ooops])
+    when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
+    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
     when(client.put(any(classOf[PutRequest]))).thenThrow(mock(classOf[HBaseException]))
 
     // Execute
-    val reaction = marketDb.addTrade(payload).apply()
-
-    log.info("Trade reaction: "+reaction)
-    assert(reaction match {
-      case TradeRejected(err) => true
-      case _ => false
-    })
+    intercept[HBaseException] {
+      marketDb.addTrade(payload).apply()
+    }
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
@@ -127,18 +109,14 @@ class MarketDbTest extends HBaseMatchers {
   @Test
   def testTradeRejectedForHBaseDeferredFailure() {
     // Init mocks
-    when(marketUidProvider.provideId("RTS")).thenReturn(UniqueId("RTS", ByteArray('0')).successNel[Ooops])
-    when(codeUidProvider.provideId("RIH")).thenReturn(UniqueId("RIH", ByteArray(0, 0, 1)).successNel[Ooops])
+    when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
+    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
     when(client.put(any(classOf[PutRequest]))).thenReturn(Deferred.fromError[AnyRef](mock(classOf[HBaseException])))
 
     // Execute
-    val reaction = marketDb.addTrade(payload).apply()
-
-    log.info("Trade reaction: "+reaction)
-    assert(reaction match {
-      case TradeRejected(err) => true
-      case _ => false
-    })
+    intercept[HBaseException] {
+      marketDb.addTrade(payload).apply()
+    }
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
@@ -154,18 +132,14 @@ class MarketDbTest extends HBaseMatchers {
     val row = ByteArray('0') ++ ByteArray(0, 0, 1) ++ year ++ day ++ minute;
 
     // Init mocks
-    when(marketUidProvider.provideId("RTS")).thenReturn(UniqueId("RTS", ByteArray('0')).successNel[Ooops])
-    when(codeUidProvider.provideId("RIH")).thenReturn(UniqueId("RIH", ByteArray(0, 0, 1)).successNel[Ooops])
+    when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
+    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
     when(client.put(putForRow(row))).thenReturn(Deferred.fromResult(new AnyRef()))
 
     // Execute
     val reaction = marketDb.addTrade(payload).apply()
 
     log.info("Trade reaction: "+reaction)
-    assert(reaction match {
-      case TradePersisted(pl) => true
-      case _ => false
-    })
 
     // Verify
     verify(marketUidProvider).provideId("RTS")

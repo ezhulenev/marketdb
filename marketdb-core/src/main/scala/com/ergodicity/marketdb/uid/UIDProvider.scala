@@ -6,11 +6,13 @@ import scalaz._
 import Scalaz._
 import org.slf4j.LoggerFactory
 import com.ergodicity.marketdb.uid._
-import com.ergodicity.marketdb.{ByteArray, Ooops}
-import com.twitter.util.{Promise, Future}
 import java.util.ArrayList
 import com.ergodicity.marketdb.AsyncHBase._
 import scalaz.Digit._0
+import com.twitter.util.FuturePool._
+import java.util.concurrent.Executors
+import com.twitter.util.{FuturePool, Promise, Future}
+import com.ergodicity.marketdb.{OopsException, ByteArray, Oops}
 
 
 /**
@@ -29,6 +31,8 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
 
   private val log = LoggerFactory.getLogger(classOf[UIDProvider])
 
+  val ProvideIdThreadPoolSize = 1
+
   /**The single column family used by this class. */
   private val IdFamily = ByteArray('i', 'd')
   /**The single column family used by this class. */
@@ -39,9 +43,12 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   private val MaxAttemptsCreateId = 3
   private val MaxAttemptsPut = 3
 
+  val ProviderIdPool = FuturePool(Executors.newFixedThreadPool(ProvideIdThreadPoolSize))
+
   // Pending requests 
   private val pendingNames = Ref(Map[ByteArray, Future[Option[UniqueId]]]())
   private val pendingIds = Ref(Map[String, Future[Option[UniqueId]]]())
+  private val pendingCreateIds = Ref(Map[String, Future[UniqueId]]())
 
   if (kind.isEmpty) {
     throw new IllegalArgumentException("Empty string as 'kind' argument!")
@@ -124,17 +131,33 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
     }
   }
 
-  def provideId(name: String) = {
-    val tryGetOrCreate = () => try {
-      log.debug(" Try get or create id for name=" + name)
-      getOrCreateId(name)
-    } catch {
-      case e: HBaseException =>
-        log.error("Error: "+e)
-        Ooops("Create id faild: " + e).failNel[UniqueId]
+  def provideId(name: String): Future[UniqueId] = {
+    def releasePending() {
+      atomic {
+        implicit txn =>
+          pendingCreateIds.transform(_ - name)
+      }
     }
 
-    retryUntilValid(MaxAttemptsCreateId)(tryGetOrCreate)
+    def tryGetOrCreate = try {
+      log.trace(" Try get or create id for name=" + name)
+      getOrCreateId(name)
+    } catch {
+      case e: HBaseException => Oops("Create id faild: " + e).failNel[UniqueId]
+    }
+
+    atomic {
+      implicit txn =>
+        pendingCreateIds.single().get(name) getOrElse {
+          val futureId =  ProviderIdPool(retryUntilValid(MaxAttemptsCreateId)(tryGetOrCreate _).fold(
+            errors => throw new OopsException(errors),
+            uid => uid
+          ))
+          pendingCreateIds.transform(_ + (name -> futureId))
+          futureId onSuccess {_ => releasePending()} onFailure {_ => releasePending()}
+          futureId
+        }
+    }
   }
 
   private def getNameInternal[R](id: ByteArray)(f: Option[String] => R): Future[R] = {
@@ -203,11 +226,11 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
     }
   }
 
-  private def validateCurrentMaxIdLength(maxId: ByteArray): ValidationNEL[Ooops, ByteArray] = {
+  private def validateCurrentMaxIdLength(maxId: ByteArray): ValidationNEL[Oops, ByteArray] = {
     if (maxId.length == 8) {
-      maxId.successNel[Ooops]
+      maxId.successNel[Oops]
     } else {
-      Ooops("Invalid currentMaxId=" + maxId.toString()).failNel[ByteArray]
+      Oops("Invalid currentMaxId=" + maxId.toString()).failNel[ByteArray]
     }
   }
 
@@ -221,13 +244,13 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   }
 
 
-  private def putToHBase(put: PutRequest): ValidationNEL[Ooops, PutRequest] = {
+  private def putToHBase(put: PutRequest): ValidationNEL[Oops, PutRequest] = {
     try {
       client.put(put).joinUninterruptibly()
-      put.successNel[Ooops]
+      put.successNel[Oops]
     } catch {
-      case e: HBaseException => Ooops("HBase failed", Some(e)).failNel[PutRequest]
-      case e => Ooops("Failed put request: ", Some(e)).failNel[PutRequest]
+      case e: HBaseException => Oops("HBase failed", Some(e)).failNel[PutRequest]
+      case e => Oops("Failed put request: ", Some(e)).failNel[PutRequest]
     }
   }
 
@@ -236,26 +259,26 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
    * and it's width equals to kind width
    * @param id generated id
    */
-  private def validateGeneratedIdValue(id: ByteArray): ValidationNEL[Ooops, ByteArray] = {
+  private def validateGeneratedIdValue(id: ByteArray): ValidationNEL[Oops, ByteArray] = {
     // Verify that we're going to drop bytes that are 0.
     val leftBytesAreZero = id.slice(0, id.length - idWidth).foldLeft(true)((p, b) => p && (b == 0))
     val valid = if (leftBytesAreZero)
-      id.successNel[Ooops]
+      id.successNel[Oops]
     else
-      Ooops("All Unique IDs for " + kind + " on " + idWidth + " bytes are already assigned!").failNel[ByteArray]
+      Oops("All Unique IDs for " + kind + " on " + idWidth + " bytes are already assigned!").failNel[ByteArray]
 
     valid
   }
 
-  private def getOrCreateId(name: String): ValidationNEL[Ooops, UniqueId] = {
-    val uid: Option[ValidationNEL[Ooops, UniqueId]] = getId(name).get().map(_.successNel[Ooops])
+  private def getOrCreateId(name: String): ValidationNEL[Oops, UniqueId] = {
+    val uid: Option[ValidationNEL[Oops, UniqueId]] = getId(name).get().map(_.successNel[Oops])
     uid getOrElse {
         // Else try to ackquire row lock to create new id
         withRowLock {
           lock =>
           // Verify that the row still doesn't exist (to avoid re-creating it if
           // it got created before we acquired the lock due to a race condition).
-            val uid = getId(name).get().map(_.successNel[Ooops])
+            val uid = getId(name).get().map(_.successNel[Oops])
 
             uid getOrElse {
                 // We verified that no one created id, so we need to do it here
@@ -274,7 +297,7 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
                 // Update Max id in HBase
                 val updateMaxId = new PutRequest(table, MaxIdRow, IdFamily, kind, row, lock)
                 passCheckOrFail(updateMaxId)(put => retryUntilValid(MaxAttemptsPut)(() => putToHBase(put)))
-                log.info("Generated id=" + id + " for kind='" + kind.asString + "' name='" + name + "'")
+                log.trace("Generated id=" + id + " for kind='" + kind.asString + "' name='" + name + "'")
 
                 // Validate generated row length && first (row.length - idWidth) bytes
                 passCheckOrFail(row)(validateGeneratedIdValue)
@@ -306,13 +329,13 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
       }
     }
 
-  private def withRowLock[R](f: RowLock => ValidationNEL[Ooops, R]): ValidationNEL[Ooops, R] = {
+  private def withRowLock[R](f: RowLock => ValidationNEL[Oops, R]): ValidationNEL[Oops, R] = {
     val lock = client.lockRow(new RowLockRequest(table.toArray, MaxIdRow.toArray)).joinUninterruptibly()
     try {
       f(lock)
     } catch {
-      case e: HBaseException => Ooops("HBase failed", Some(e)).failNel[R]
-      case e: Exception => Ooops("Failed", Some(e)).failNel[R]
+      case e: HBaseException => Oops("HBase failed", Some(e)).failNel[R]
+      case e: Exception => Oops("Failed", Some(e)).failNel[R]
     } finally {
       client.unlockRow(lock)
     }
@@ -336,14 +359,13 @@ class UIDCache {
 
   def cachedIds = idCache.single().keySet
 
-  def cache(name: String, id: ByteArray): ValidationNEL[Ooops, UniqueId] = {
+  def cache(name: String, id: ByteArray): ValidationNEL[Oops, UniqueId] = {
     val log = LoggerFactory.getLogger(classOf[UIDCache])
-    log.info("Cache: "+name+":"+id)
     atomic {
       implicit txn =>
 
-        val nameValidation: Validation[Ooops, String] = validateName(name, id)
-        val idValidation: Validation[Ooops, ByteArray] = validateId(id, name)
+        val nameValidation: Validation[Oops, String] = validateName(name, id)
+        val idValidation: Validation[Oops, ByteArray] = validateId(id, name)
 
         (nameValidation.liftFailNel |@| idValidation.liftFailNel) {
           (validaName, validId) =>
@@ -356,22 +378,22 @@ class UIDCache {
 
   private def validateId(id: ByteArray, name: String)(implicit txn: scala.concurrent.stm.InTxn) = {
     idCache() get (id) match {
-      case None => id.success[Ooops]
+      case None => id.success[Oops]
       case Some(value) => if (value != null && value == name) {
-        id.success[Ooops]
+        id.success[Oops]
       } else {
-        Ooops("id=" + id + " => name=" + name + ", already mapped to id " + value).fail[ByteArray]
+        Oops("id=" + id + " => name=" + name + ", already mapped to id " + value).fail[ByteArray]
       }
     }
   }
 
   private def validateName(name: String, id: ByteArray)(implicit txn: scala.concurrent.stm.InTxn) = {
     nameCache() get (name) match {
-      case None => name.success[Ooops]
+      case None => name.success[Oops]
       case Some(value) => if (value != null && value == id) {
-        name.success[Ooops]
+        name.success[Oops]
       } else {
-        Ooops("name=" + name + " => id=" + id + ", already mapped to name " + value).fail[String]
+        Oops("name=" + name + " => id=" + id + ", already mapped to name " + value).fail[String]
       }
     }
   }

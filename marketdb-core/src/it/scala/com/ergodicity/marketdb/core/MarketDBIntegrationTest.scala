@@ -30,11 +30,6 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
       val reaction = recordTime("Reaction", () => futureReaction.apply())
 
       log.info("Trade reaction: " + reaction)
-      assert(reaction match {
-        case TradePersisted(pl) => true
-        case _ => false
-      })
-
     }
   }
 }
