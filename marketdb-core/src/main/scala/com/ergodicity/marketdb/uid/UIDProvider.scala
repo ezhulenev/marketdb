@@ -10,6 +10,7 @@ import com.ergodicity.marketdb.{ByteArray, Ooops}
 import com.twitter.util.{Promise, Future}
 import java.util.ArrayList
 import com.ergodicity.marketdb.AsyncHBase._
+import scalaz.Digit._0
 
 
 /**
@@ -38,6 +39,10 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   private val MaxAttemptsCreateId = 3
   private val MaxAttemptsPut = 3
 
+  // Pending requests 
+  private val pendingNames = Ref(Map[ByteArray, Future[Option[UniqueId]]]())
+  private val pendingIds = Ref(Map[String, Future[Option[UniqueId]]]())
+
   if (kind.isEmpty) {
     throw new IllegalArgumentException("Empty string as 'kind' argument!")
   }
@@ -56,23 +61,66 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   @volatile
   var cacheMisses: Int = 0
 
+  /**
+   * Get id by given id, if exists some other pending request for given id, return it
+   * After pending request finished, remove name from cache
+   * @param id id to search
+   * @return Future for Option[UniqueId] for given id
+   */
   def getName(id: ByteArray) = {
-    getNameInternal(id) {name =>
-        val uid = name.map(UniqueId(_, id))
-        uid.map(uid => cache.cache(uid.name, uid.id)).map({
-          case Success(cached) => cached
-          case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
-        })
+    def releasePending() {
+      atomic {
+        implicit txn =>
+          pendingNames.transform(_ - id)
+      }
+    }
+
+    atomic {
+      implicit txn =>
+        pendingNames.single().get(id) getOrElse {
+          val futureName = getNameInternal(id) {
+            name =>
+              val uid = name.map(UniqueId(_, id))
+              uid.map(uid => cache.cache(uid.name, uid.id)).map({
+                case Success(cached) => cached
+                case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
+              })
+          }
+          pendingNames.transform(_ + (id -> futureName))
+          futureName onSuccess {_ => releasePending()} onFailure {_ => releasePending()}
+          futureName
+        }
     }
   }
 
+  /**
+   * Get id by given name, if exists some other pending request for given name, return it
+   * After pending request finished, remove id from cache
+   * @param name name to get id
+   * @return Future for Option[UniqueId] for given name
+   */
   def getId(name: String) = {
-    getIdInternal(name) { id =>
-        val uid = id.map(UniqueId(name, _))
-        uid.map(uid => cache.cache(uid.name, uid.id)).map({
-          case Success(cached) => cached
-          case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
-        })
+    def releasePending() {
+      atomic {
+        implicit txn =>
+          pendingIds.transform(_ - name)
+      }
+    }
+
+    atomic {
+      implicit txn =>
+        pendingIds.single().get(name) getOrElse {
+          val futureId =  getIdInternal(name) { id =>
+            val uid = id.map(UniqueId(name, _))
+            uid.map(uid => cache.cache(uid.name, uid.id)).map({
+              case Success(cached) => cached
+              case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
+            })
+          }
+          pendingIds.transform(_ + (name -> futureId))
+          futureId onSuccess {_ => releasePending()} onFailure {_ => releasePending()}
+          futureId
+        }
     }
   }
 
@@ -271,12 +319,6 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   }
 
   override def toString = "UIDProvider(" + table + ", " + kind + ", " + idWidth + ")"
-}
-
-class PendingRequests {
-  /*private val findNameCache = Ref(Map[String, Future[Option[UniqueId]]])
-  private val findIdCache = Ref(Map[ByteArray, Future[Option[UniqueId]]])
-  private val provideIdCache = Ref(Map[String, Future[UniqueId]])*/
 }
 
 class UIDCache {

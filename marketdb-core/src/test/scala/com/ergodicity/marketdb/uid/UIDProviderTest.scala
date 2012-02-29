@@ -48,7 +48,8 @@ class UIDProviderTest extends HBaseMatchers {
     log.info("Response: " + response)
 
     assert(responseIsValid(response))
-
+    
+    Thread.sleep(1000)
     // Should be a cache hit ...
     response = provider.getName(id).get()
     assert(responseIsValid(response))
