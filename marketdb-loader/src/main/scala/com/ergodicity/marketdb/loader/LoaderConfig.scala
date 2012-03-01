@@ -30,4 +30,4 @@ class LoaderConfig extends ServerConfig[Loader] {
   }
 }
 
-case class KestrelConfig(host: String, port: Int, tradesQueue: String)
+case class KestrelConfig(host: String, port: Int, tradesQueue: String, hostConnectionLimit: Int = 1)

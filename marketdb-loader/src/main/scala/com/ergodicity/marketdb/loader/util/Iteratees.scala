@@ -13,6 +13,8 @@ import com.twitter.concurrent.{Offer, ChannelSource}
 import java.util.concurrent.atomic.AtomicReference
 
 object Iteratees {
+  private[this] val log = LoggerFactory.getLogger("Iteratees")
+
   def printer[E](log: org.slf4j.Logger): IterV[E, Boolean] = {
     def step(is: Boolean, e: E)(s: Input[E]): IterV[E, Boolean] = {
       log.info("STEP: " + e)
@@ -33,18 +35,12 @@ object Iteratees {
   def kestrelLoader[E](queue: String, client: Client, serializer: E => Array[Byte]): IterV[E, LoaderReport] = {
     def pushToChannel(e: E) {
       val bytes = serializer(e)
-      val log = LoggerFactory.getLogger("PUSH_LOGGER")
-      log.info("PUSH: " + e)
       Stats.incr("trades_processed", 1)
-      client.write(queue, OfferOnce(ChannelBuffers.wrappedBuffer(bytes))) onSuccess {
-        failure =>
-          log.error("Failed to send trade data: " + failure)
-          Stats.incr("trades_failed", 1)
-      }
+      client.write(queue, OfferOnce(ChannelBuffers.wrappedBuffer(bytes)))
     }
 
     def step(is: LoaderReport, e: E)(s: Input[E]): IterV[E, LoaderReport] = {
-      s(el = e2 => {pushToChannel(e2); if (is.count < 10000) Cont(step(LoaderReport(is.count + 1), e2)) else Done(is, EOF[E])},
+      s(el = e2 => {pushToChannel(e2); if (is.count % 10000 == 0) log.info("Processed: "+is.count); if (is.count < 500000) Cont(step(LoaderReport(is.count + 1), e2)) else Done(is, EOF[E])},
         empty = Cont(step(is, e)),
         eof = Done(is, EOF[E]))
     }

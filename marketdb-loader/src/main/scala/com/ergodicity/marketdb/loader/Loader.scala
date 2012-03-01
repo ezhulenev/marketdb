@@ -45,7 +45,7 @@ class Loader(loader: Option[TradeLoader], interval: Interval, kestrelConfig: Opt
     Client(ClientBuilder()
     .codec(Kestrel())
     .hosts(cfg.host+":"+cfg.port)
-    .hostConnectionLimit(1) // process at most 1 item per connection concurrently
+    .hostConnectionLimit(cfg.hostConnectionLimit) // process at most 1 item per connection concurrently
     .buildFactory()))
 
   lazy val TradePayloadSerializer = {

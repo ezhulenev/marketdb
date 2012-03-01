@@ -4,7 +4,7 @@ import com.twitter.ostrich.admin.config.{StatsConfig, JsonStatsLoggerConfig, Tim
 new MarketDBConfig {
   admin.httpPort = 9000
 
-  kestrelConfig = Some(KestrelConfig(Seq("localhost:22133"), "trades"))
+  kestrelConfig = Some(KestrelConfig(Seq("localhost:22133"), "trades", 30))
 
   admin.statsNodes = new StatsConfig {
     reporters = new JsonStatsLoggerConfig {

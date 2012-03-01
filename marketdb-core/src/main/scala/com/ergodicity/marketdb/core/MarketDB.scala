@@ -7,7 +7,6 @@ import org.hbase.async.{PutRequest, HBaseClient}
 import com.ergodicity.marketdb.{AsyncHBase, ByteArray}
 import com.ergodicity.marketdb.model._
 import com.twitter.ostrich.admin.{Service, RuntimeEnvironment}
-import java.util.concurrent.atomic.AtomicBoolean
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.kestrel.protocol.Kestrel
@@ -15,6 +14,12 @@ import com.twitter.finagle.kestrel.{ReadHandle, Client}
 import com.twitter.util.{JavaTimer, Promise, Future}
 import com.twitter.finagle.service.Backoff
 import com.twitter.ostrich.stats.Stats
+import org.joda.time.format.DateTimeFormat
+import org.joda.time.Interval
+import com.twitter.finagle.util.Timer
+import java.util.TimerTask
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.{AtomicReference, AtomicLong, AtomicBoolean}
 
 case class TradePersisted(payload: TradePayload)
 
@@ -52,12 +57,12 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
   val UidThreadPoolSize = 1;
 
   // -- Config Kestrel clients
-  val clients: Option[Seq[Client]] = kestrelConfig.map(_.hosts.map {
+  val clients: Option[Seq[Client]] = kestrelConfig.map(cfg => cfg.hosts.map {
     host =>
       Client(ClientBuilder()
         .codec(Kestrel())
         .hosts(host)
-        .hostConnectionLimit(1) // process at most 1 item per connection concurrently
+        .hostConnectionLimit(cfg.hostConnectionLimit)
         .buildFactory())
   })
 
@@ -78,6 +83,13 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
     readHandle.map(_.error foreach { e =>
         if (!MarketDB.stopped.get) System.err.println("zomg! got an error " + e)
     })
+    
+    val first = new AtomicBoolean(true)
+    val Formatter = DateTimeFormat.forPattern("YYYY MM dd HH:mm:ss:SSS")
+    val start = new AtomicLong()
+
+    val task = new AtomicReference[TimerTask]()
+    val resetTimer = new java.util.Timer()
 
     // Attach an async message handler that prints the messages to stdout
     readHandle.map(_.messages foreach { msg =>
@@ -85,13 +97,32 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
           import sbinary._
           import Operations._
           import TradeProtocol._
-          val payload = fromByteArray[TradePayload](msg.bytes.array())
+
+          val payload = Stats.time("from_byte_array") {fromByteArray[TradePayload](msg.bytes.array())}
+
+          val now = System.currentTimeMillis()
+          if (first.get()) {
+            Stats.setLabel("first_received", Formatter.print(now))
+            start.set(now)
+            first.set(false)            
+          }
+          Stats.setLabel("last_received", Formatter.print(now))
+          Stats.setLabel("last_received_diff_msec", (now - start.get()).toString)
+
+          val prev = task.getAndSet(new TimerTask {
+            def run() {first.set(true)}
+          })
+          if (prev != null) prev.cancel()
+          resetTimer.schedule(task.get(), TimeUnit.SECONDS.toMillis(10))
+
           Stats.incr("trades_received", 1)
-          addTrade(payload) onSuccess {reaction =>
-            log.info("Trade persisted")
+          Stats.timeFutureMillis("add_trade") {addTrade(payload)} onSuccess {reaction =>
+
+            val now = System.currentTimeMillis()
+            Stats.setLabel("last_persisted", Formatter.print(now))
+            Stats.setLabel("last_persisted_diff_msec", (now - start.get()).toString)
             Stats.incr("trades_persisted", 1)
           } onFailure {_ =>
-            log.info("Trade failed")
             Stats.incr("trades_failed", 1)
           }
         } finally {
@@ -115,12 +146,11 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
     val draftTrade: DraftTrade = Trade.loadFromHistory(Seq(TradeReceived(payload)))
 
     // Get Unique Ids for market and code
-    val marketUid = marketIdProvider.provideId(payload.market.value)
-    val codeUid = codeIdProvider.provideId(payload.code.value)
+    val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(payload.market.value)}
+    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(payload.code.value)}
 
     val binaryTradeReaction: Future[Reaction[BinaryTrade]] = (marketUid join codeUid) map {
       tuple =>
-        log.trace("Got marketUid=" + tuple._1 + " and codeUid=" + tuple._2)
         draftTrade.enrichTrade(tuple._1.id, tuple._2.id).flatMap(_.serializeTrade()).reaction
     }
 
@@ -129,20 +159,20 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
         case Rejected(err) => throw new RuntimeException("Trade rejected: "+err);
     }
 
-    binaryTrade flatMap {putTradeToHBase(payload, _)} onFailure {err =>
+    binaryTrade flatMap {putTradeToHBase(_)} onFailure {err =>
       handleFailedTrade(payload, err)
     }
   }
 
-  private def putTradeToHBase(payload: TradePayload, binary: BinaryTrade) = {
+  private def putTradeToHBase(binary: BinaryTrade) = {
     implicit def ba2arr(ba: ByteArray) = ba.toArray
     val putRequest = new PutRequest(ByteArray(tradesTable), binary.row, ColumnFamily, binary.qualifier, binary.payload)
 
-    val promise = new Promise[AnyRef]
+    val promise = new Promise[Boolean]
     try {
       import AsyncHBase._
       val deferred = client.put(putRequest)
-      deferred.addCallback {(_: Any) =>promise.setValue(new AnyRef)}
+      deferred.addCallback {(_: Any) =>promise.setValue(true)}
       deferred.addErrback {(e: Throwable) => promise.setException(e)}
     } catch {
       case e => promise.setException(e)

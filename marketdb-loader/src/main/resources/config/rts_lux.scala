@@ -14,5 +14,5 @@ new LoaderConfig {
 
   loader = Some(new RtsTradeLoader(dir, url, pattern))
 
-  kestrelConfig = Some(KestrelConfig("localhost", 22133, "trades"))
+  kestrelConfig = Some(KestrelConfig("localhost", 22133, "trades", 10))
 }

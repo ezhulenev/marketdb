@@ -328,7 +328,7 @@ class UIDProviderTest extends HBaseMatchers {
 
     // Validate cache state
     assertEquals("Cache hits invalid", 1, provider.cacheHits)
-    assertEquals("Cache misses invalid", 1, provider.cacheMisses)
+    assertEquals("Cache misses invalid", 1+1, provider.cacheMisses)
     assertEquals("Cached ids size invalid", 1, cache.cachedIds.size)
     assertEquals("Cached names size invalid", 1, cache.cachedNames.size)
 

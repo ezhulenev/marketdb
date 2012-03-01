@@ -13,6 +13,9 @@ import com.twitter.util.FuturePool._
 import java.util.concurrent.Executors
 import com.twitter.util.{FuturePool, Promise, Future}
 import com.ergodicity.marketdb.{OopsException, ByteArray, Oops}
+import java.util.concurrent.locks.{ReentrantLock, Lock}
+import java.util.concurrent.atomic.AtomicReference
+import com.twitter.ostrich.stats.Stats
 
 
 /**
@@ -45,10 +48,15 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
 
   val ProviderIdPool = FuturePool(Executors.newFixedThreadPool(ProvideIdThreadPoolSize))
 
-  // Pending requests 
-  private val pendingNames = Ref(Map[ByteArray, Future[Option[UniqueId]]]())
-  private val pendingIds = Ref(Map[String, Future[Option[UniqueId]]]())
-  private val pendingCreateIds = Ref(Map[String, Future[UniqueId]]())
+  // Pending requests
+  private val nameLock = new ReentrantLock()
+  private val promisedNames = new AtomicReference(Map[ByteArray, Future[Option[UniqueId]]]())
+  
+  private val idLock = new ReentrantLock()
+  private val promisedIds = new AtomicReference(Map[String, Future[Option[UniqueId]]]())
+  
+  private val createIdLock = new ReentrantLock()
+  private val promisedCreateId = new AtomicReference(Map[String, Future[UniqueId]]())
 
   if (kind.isEmpty) {
     throw new IllegalArgumentException("Empty string as 'kind' argument!")
@@ -68,74 +76,78 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   @volatile
   var cacheMisses: Int = 0
 
-  /**
-   * Get id by given id, if exists some other pending request for given id, return it
-   * After pending request finished, remove name from cache
-   * @param id id to search
-   * @return Future for Option[UniqueId] for given id
-   */
   def getName(id: ByteArray) = {
-    def releasePending() {
-      atomic {
-        implicit txn =>
-          pendingNames.transform(_ - id)
+    validateIdWidth(id)
+
+    val cached = cache.name(id).map(UniqueId(_, id))
+    if (cached.isDefined) cacheHits += 1 else cacheMisses +=1
+
+    cached.map(uid => Future {Some(uid)}) getOrElse promiseNameFromHBase(id)
+  }
+
+  private def promiseNameFromHBase(id: ByteArray) = {
+    def releasePromise() {
+      guardedWith(nameLock) {
+        promisedNames.set(promisedNames.get() - id)
       }
     }
 
-    atomic {
-      implicit txn =>
-        pendingNames.single().get(id) getOrElse {
-          val futureName = getNameInternal(id) {
-            name =>
-              val uid = name.map(UniqueId(_, id))
-              uid.map(uid => cache.cache(uid.name, uid.id)).map({
-                case Success(cached) => cached
-                case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
-              })
-          }
-          pendingNames.transform(_ + (id -> futureName))
-          futureName onSuccess {_ => releasePending()} onFailure {_ => releasePending()}
-          futureName
+    guardedWith(nameLock) {
+      promisedNames.get.get(id) getOrElse {
+        val promise = getNameFromHBase(id) {
+          ba =>
+            val uid = ba.map(arr => UniqueId(arr.asString, id))
+            uid.map(uid => cache.cache(uid.name, uid.id)).map({
+              case Success(value) => value
+              case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
+            })
         }
+        promisedNames.set(promisedNames.get() + (id -> promise))
+        promise onSuccess {_ => releasePromise()} onFailure {_ => releasePromise()}
+      }
     }
   }
 
-  /**
-   * Get id by given name, if exists some other pending request for given name, return it
-   * After pending request finished, remove id from cache
-   * @param name name to get id
-   * @return Future for Option[UniqueId] for given name
-   */
   def getId(name: String) = {
-    def releasePending() {
-      atomic {
-        implicit txn =>
-          pendingIds.transform(_ - name)
+    val cached = cache.id(name).map(UniqueId(name, _))
+    if (cached.isDefined) cacheHits += 1 else cacheMisses +=1
+
+    cached.map(uid => Future {Some(uid)}) getOrElse promiseIdFromHBase(name)
+  }
+
+  private def promiseIdFromHBase(name: String) = {
+    def releasePromise() {
+      guardedWith(idLock) {
+        promisedIds.set(promisedIds.get() - name)
       }
     }
 
-    atomic {
-      implicit txn =>
-        pendingIds.single().get(name) getOrElse {
-          val futureId =  getIdInternal(name) { id =>
+    guardedWith(idLock) {
+      promisedIds.get.get(name) getOrElse {
+        val promise = getIdFromHBase(name) {
+          id =>
             val uid = id.map(UniqueId(name, _))
             uid.map(uid => cache.cache(uid.name, uid.id)).map({
-              case Success(cached) => cached
+              case Success(value) => value
               case Failure(err) => throw new RuntimeException("Failed to cache new UID: " + err)
             })
-          }
-          pendingIds.transform(_ + (name -> futureId))
-          futureId onSuccess {_ => releasePending()} onFailure {_ => releasePending()}
-          futureId
         }
+        promisedIds.set(promisedIds.get() + (name -> promise))
+        promise onSuccess {_ => releasePromise()} onFailure {_ => releasePromise()}
+      }
     }
   }
 
   def provideId(name: String): Future[UniqueId] = {
-    def releasePending() {
-      atomic {
-        implicit txn =>
-          pendingCreateIds.transform(_ - name)
+    val cached = cache.id(name).map(UniqueId(name, _))
+    if (cached.isDefined) cacheHits += 1 else cacheMisses +=1
+    cached.map(uid => Future {uid}) getOrElse promiseProvideId(name)
+  }
+
+  def promiseProvideId(name: String) = {
+    def releasePromise() {
+      guardedWith(createIdLock) {
+        promisedCreateId.set(promisedCreateId.get() - name)
       }
     }
 
@@ -146,36 +158,18 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
       case e: HBaseException => Oops("Create id faild: " + e).failNel[UniqueId]
     }
 
-    atomic {
-      implicit txn =>
-        pendingCreateIds.single().get(name) getOrElse {
-          val futureId =  ProviderIdPool(retryUntilValid(MaxAttemptsCreateId)(tryGetOrCreate _).fold(
-            errors => throw new OopsException(errors),
-            uid => uid
-          ))
-          pendingCreateIds.transform(_ + (name -> futureId))
-          futureId onSuccess {_ => releasePending()} onFailure {_ => releasePending()}
-          futureId
-        }
-    }
-  }
-
-  private def getNameInternal[R](id: ByteArray)(f: Option[String] => R): Future[R] = {
-    // First check id width and fail if error occurred
-    validateIdWidth(id)
-
-    val cachedName = cache.name(id)
-    cachedName match {
-      case Some(_) => cacheHits += 1; Future {f(cachedName)}
-      case None => cacheMisses += 1; getNameFromHBase(id)(opt => f(opt.map(_.asString)))
-    }
-  }
-
-  private def getIdInternal[R](name: String)(f: Option[ByteArray] => R): Future[R] = {
-    val cachedId = cache.id(name)
-    cachedId match {
-      case Some(_) => cacheHits += 1; Future {f(cachedId)}
-      case None => cacheMisses += 1; getIdFromHBase(name)(f)
+    Stats.incr("promise_provide_id", 1)
+    guardedWith(createIdLock) {
+      promisedCreateId.get.get(name) getOrElse {
+        Stats.incr("promise_provide_id_fromHBase", 1)
+        log.info("Promise provider id from hbase: " + name)
+        val promise = Stats.timeFutureMillis("provide_new_id") {ProviderIdPool(retryUntilValid(MaxAttemptsCreateId)(tryGetOrCreate _).fold(
+          errors => throw new OopsException(errors),
+          uid => uid
+        ))}
+        promisedCreateId.set(promisedCreateId.get() + (name -> promise))
+        promise onSuccess {_ => releasePromise()} onFailure {_ => releasePromise()}
+      }
     }
   }
 
@@ -338,6 +332,15 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
       case e: Exception => Oops("Failed", Some(e)).failNel[R]
     } finally {
       client.unlockRow(lock)
+    }
+  }
+
+  private def guardedWith[R](lock: Lock)(f: => R): R = {
+    lock.lock()
+    try {
+      f
+    } finally {
+      lock.unlock()
     }
   }
 

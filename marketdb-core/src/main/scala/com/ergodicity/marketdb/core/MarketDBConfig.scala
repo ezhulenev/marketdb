@@ -37,4 +37,4 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
   }
 }
 
-case class KestrelConfig(hosts: Seq[String], tradesQueue: String)
+case class KestrelConfig(hosts: Seq[String], tradesQueue: String, hostConnectionLimit: Int)
