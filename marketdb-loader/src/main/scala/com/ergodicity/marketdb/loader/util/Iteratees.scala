@@ -4,17 +4,20 @@ import scalaz._
 import IterV._
 import scalaz.{Input, IterV}
 import com.ergodicity.marketdb.model.TradePayload
-import com.ergodicity.marketdb.loader.LoaderReport
 import org.slf4j.LoggerFactory
-import org.jboss.netty.buffer.{ChannelBuffers, ChannelBuffer}
+import org.jboss.netty.buffer.ChannelBuffers
 import com.twitter.finagle.kestrel.Client
 import com.twitter.ostrich.stats.Stats
-import com.twitter.concurrent.{Offer, ChannelSource}
+import com.twitter.concurrent.Offer
 import java.util.concurrent.atomic.AtomicReference
+
+case class BulkLoaderReport[E](count: Int, list: List[E])
+
+case class BulkLoaderSetting(size: Int, limit: Option[Int])
 
 object Iteratees {
   private[this] val log = LoggerFactory.getLogger("Iteratees")
-
+  
   def printer[E](log: org.slf4j.Logger): IterV[E, Boolean] = {
     def step(is: Boolean, e: E)(s: Input[E]): IterV[E, Boolean] = {
       log.info("STEP: " + e)
@@ -32,29 +35,52 @@ object Iteratees {
     Cont(first)
   }
 
-  def kestrelLoader[E](queue: String, client: Client, serializer: E => Array[Byte]): IterV[E, LoaderReport] = {
-    def pushToChannel(e: E) {
-      val bytes = serializer(e)
-      Stats.incr("trades_processed", 1)
-      client.write(queue, OfferOnce(ChannelBuffers.wrappedBuffer(bytes)))
+  def kestrelBulkLoader[E](queue: String, client: Client)
+                          (implicit serializer: List[E] => Array[Byte], settings: BulkLoaderSetting): IterV[E, BulkLoaderReport[E]] = {
+
+    def flush(list: List[E]) {
+      val bytes = serializer(list)
+      client.write(queue, OfferOnce(ChannelBuffers.wrappedBuffer(bytes)))      
     }
 
-    def step(is: LoaderReport, e: E)(s: Input[E]): IterV[E, LoaderReport] = {
-      s(el = e2 => {pushToChannel(e2); if (is.count % 10000 == 0) log.info("Processed: "+is.count); if (is.count < 500000) Cont(step(LoaderReport(is.count + 1), e2)) else Done(is, EOF[E])},
+    def flushIfRequired(e: E, rep: BulkLoaderReport[E]) = {
+      if (rep.list.size >= settings.size) {
+        log.info("Flush data to channel; Position: " + rep.count + "; Size: " + rep.list.size)
+        flush(rep.list)
+        BulkLoaderReport(rep.count+1, e :: Nil)
+      } else {
+        BulkLoaderReport(rep.count+1, e :: rep.list)
+      }
+    }
+
+    def flushRemaining(rep: BulkLoaderReport[E]) = {
+      log.info("Flush remaining; Position: " + rep.count + "; Size: " + rep.list.size)
+      flush(rep.list)
+      BulkLoaderReport[E](rep.count, Nil)
+    }
+
+    def step(is: BulkLoaderReport[E], e: E)(s: Input[E]): IterV[E, BulkLoaderReport[E]] = {
+      s(el = e2 => {
+        Stats.incr("trades_processed", 1);
+        if (settings.limit.isDefined && is.count >= settings.limit.get) {
+          val afterFlush = flushRemaining(is)
+          Done(afterFlush, EOF[E])
+        } else Cont(step(flushIfRequired(e2, is), e2))
+      },
         empty = Cont(step(is, e)),
-        eof = Done(is, EOF[E]))
+        eof = Done(flushRemaining(is), EOF[E]))
     }
 
-    def first(s: Input[E]): IterV[E, LoaderReport] = {
-      s(el = e1 => {pushToChannel(e1); Cont(step(LoaderReport(1), e1))},
+    def first(s: Input[E]): IterV[E, BulkLoaderReport[E]] = {
+      s(el = e1 => {
+        Cont(step(BulkLoaderReport(1, List(e1)), e1))
+      },
         empty = Cont(first),
-        eof = Done(LoaderReport(0), EOF[E]))
+        eof = Done(BulkLoaderReport(0, Nil), EOF[E]))
     }
 
     Cont(first)
   }
-
-
 
   def counter[E]: IterV[E, Int] = {
     def step(is: Int, e: E)(s: Input[E]): IterV[E, Int] = {

@@ -98,13 +98,15 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
           import Operations._
           import TradeProtocol._
 
-          val payload = Stats.time("from_byte_array") {fromByteArray[TradePayload](msg.bytes.array())}
+          val list = Stats.time("from_byte_array") {fromByteArray[List[TradePayload]](msg.bytes.array())}
+          log.trace("Received trades; Size: "+list.size)
+          Stats.incr("trades_bunch_received", 1)
 
           val now = System.currentTimeMillis()
           if (first.get()) {
             Stats.setLabel("first_received", Formatter.print(now))
             start.set(now)
-            first.set(false)            
+            first.set(false)
           }
           Stats.setLabel("last_received", Formatter.print(now))
           Stats.setLabel("last_received_diff_msec", (now - start.get()).toString)
@@ -115,15 +117,16 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
           if (prev != null) prev.cancel()
           resetTimer.schedule(task.get(), TimeUnit.SECONDS.toMillis(10))
 
-          Stats.incr("trades_received", 1)
-          Stats.timeFutureMillis("add_trade") {addTrade(payload)} onSuccess {reaction =>
-
-            val now = System.currentTimeMillis()
-            Stats.setLabel("last_persisted", Formatter.print(now))
-            Stats.setLabel("last_persisted_diff_msec", (now - start.get()).toString)
-            Stats.incr("trades_persisted", 1)
-          } onFailure {_ =>
-            Stats.incr("trades_failed", 1)
+          for (payload <- list) {
+            Stats.incr("trades_received", 1)
+            Stats.timeFutureMillis("add_trade") {addTrade(payload)} onSuccess {reaction =>
+              val now = System.currentTimeMillis()
+              Stats.setLabel("last_persisted", Formatter.print(now))
+              Stats.setLabel("last_persisted_diff_msec", (now - start.get()).toString)
+              Stats.incr("trades_persisted", 1)
+            } onFailure {_ =>
+              Stats.incr("trades_failed", 1)
+            }
           }
         } finally {
           msg.ack() // if we don't do this, no more msgs will come to us

@@ -8,8 +8,10 @@ import org.scala_tools.time.Implicits._
 class LoaderConfig extends ServerConfig[Loader] {
   val Format = DateTimeFormat.forPattern("yyyyMMdd")
 
-  var loader: Option[TradeLoader] = None
+  var limit: Option[Int] = None
   
+  var loader: Option[TradeLoader] = None
+
   var kestrelConfig: Option[KestrelConfig] = None
 
   def apply(runtime: RuntimeEnvironment) = {
@@ -26,8 +28,8 @@ class LoaderConfig extends ServerConfig[Loader] {
     val from = Format.parseDateTime(runtime.arguments("from"));
     val until = Format.parseDateTime(runtime.arguments("until"));
 
-    new Loader(loader, from to until, kestrelConfig)
+    new Loader(loader, from to until, kestrelConfig, limit)
   }
 }
 
-case class KestrelConfig(host: String, port: Int, tradesQueue: String, hostConnectionLimit: Int = 1)
+case class KestrelConfig(host: String, port: Int, tradesQueue: String, hostConnectionLimit: Int = 1, bulkSize:Int = 1000)
