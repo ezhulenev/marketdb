@@ -1,7 +1,14 @@
-import com.ergodicity.marketdb.loader.{KestrelConfig, RtsTradeLoader, LoaderConfig}
+import com.ergodicity.marketdb.loader.util.{BatchSettings, Iteratees}
+import com.ergodicity.marketdb.loader.{KestrelConfig, KestrelSettings, RtsTradeLoader, LoaderConfig}
+import com.ergodicity.marketdb.model.TradePayload
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.kestrel.Client
+import com.twitter.finagle.kestrel.protocol.Kestrel
 import java.io.File
+import Iteratees._
+import org.slf4j.LoggerFactory
 
-new LoaderConfig {
+new KestrelConfig(KestrelSettings("localhost", 22133, "trades", 10), BatchSettings(100, Some(1000))) {
   admin.httpPort = 10000
 
   val dir = new File("D:\\data\\rts")
@@ -12,9 +19,5 @@ new LoaderConfig {
   val url = "http://ftp.rts.ru/pub/info/stats/history"
   val pattern = "'/F/'YYYY'/FT'YYMMdd'.zip'"
 
-  loader = Some(new RtsTradeLoader(dir, url, pattern))
-
-  kestrelConfig = Some(KestrelConfig("localhost", 22133, "trades", 10, 1000))
-
-  limit = Some(30000)
+  val loader = new RtsTradeLoader(dir, url, pattern)
 }

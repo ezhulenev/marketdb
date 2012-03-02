@@ -11,9 +11,9 @@ import com.twitter.ostrich.stats.Stats
 import com.twitter.concurrent.Offer
 import java.util.concurrent.atomic.AtomicReference
 
-case class BulkLoaderReport[E](count: Int, list: List[E])
+case class LoaderReport[E](count: Int, list: List[E])
 
-case class BulkLoaderSetting(size: Int, limit: Option[Int])
+case class BatchSettings(size: Int, limit: Option[Int])
 
 object Iteratees {
   private[this] val log = LoggerFactory.getLogger("Iteratees")
@@ -36,30 +36,30 @@ object Iteratees {
   }
 
   def kestrelBulkLoader[E](queue: String, client: Client)
-                          (implicit serializer: List[E] => Array[Byte], settings: BulkLoaderSetting): IterV[E, BulkLoaderReport[E]] = {
+                          (implicit serializer: List[E] => Array[Byte], settings: BatchSettings): IterV[E, LoaderReport[E]] = {
 
     def flush(list: List[E]) {
       val bytes = serializer(list)
       client.write(queue, OfferOnce(ChannelBuffers.wrappedBuffer(bytes)))      
     }
 
-    def flushIfRequired(e: E, rep: BulkLoaderReport[E]) = {
+    def flushIfRequired(e: E, rep: LoaderReport[E]) = {
       if (rep.list.size >= settings.size) {
         log.info("Flush data to channel; Position: " + rep.count + "; Size: " + rep.list.size)
         flush(rep.list)
-        BulkLoaderReport(rep.count+1, e :: Nil)
+        LoaderReport(rep.count+1, e :: Nil)
       } else {
-        BulkLoaderReport(rep.count+1, e :: rep.list)
+        LoaderReport(rep.count+1, e :: rep.list)
       }
     }
 
-    def flushRemaining(rep: BulkLoaderReport[E]) = {
+    def flushRemaining(rep: LoaderReport[E]) = {
       log.info("Flush remaining; Position: " + rep.count + "; Size: " + rep.list.size)
       flush(rep.list)
-      BulkLoaderReport[E](rep.count, Nil)
+      LoaderReport[E](rep.count, Nil)
     }
 
-    def step(is: BulkLoaderReport[E], e: E)(s: Input[E]): IterV[E, BulkLoaderReport[E]] = {
+    def step(is: LoaderReport[E], e: E)(s: Input[E]): IterV[E, LoaderReport[E]] = {
       s(el = e2 => {
         Stats.incr("trades_processed", 1);
         if (settings.limit.isDefined && is.count >= settings.limit.get) {
@@ -71,12 +71,12 @@ object Iteratees {
         eof = Done(flushRemaining(is), EOF[E]))
     }
 
-    def first(s: Input[E]): IterV[E, BulkLoaderReport[E]] = {
+    def first(s: Input[E]): IterV[E, LoaderReport[E]] = {
       s(el = e1 => {
-        Cont(step(BulkLoaderReport(1, List(e1)), e1))
+        Cont(step(LoaderReport(1, List(e1)), e1))
       },
         empty = Cont(first),
-        eof = Done(BulkLoaderReport(0, Nil), EOF[E]))
+        eof = Done(LoaderReport(0, Nil), EOF[E]))
     }
 
     Cont(first)

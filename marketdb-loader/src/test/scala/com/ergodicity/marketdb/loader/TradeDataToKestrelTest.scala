@@ -6,7 +6,7 @@ import com.ergodicity.marketdb.model.TradePayload
 import com.twitter.finagle.kestrel.Client
 import org.mockito.Mockito._
 import org.mockito.Matchers._
-import util.{BulkLoaderSetting, Iteratees}
+import util.{BatchSettings, Iteratees}
 import sbinary._
 import Operations._
 import com.ergodicity.marketdb.model.TradeProtocol._
@@ -32,7 +32,7 @@ class TradeDataToKestrelTest extends Spec {
 
       val client = mock(classOf[Client])
 
-      implicit val settings = BulkLoaderSetting(1000, None)
+      implicit val settings = BatchSettings(1000, None)
       val reportIo = RtsTrades().enumTradeData(kestrelBulkLoader(Queue, client)) map (_.run)
       val report = reportIo.unsafePerformIO
 
@@ -50,7 +50,7 @@ class TradeDataToKestrelTest extends Spec {
 
       val client = mock(classOf[Client])
 
-      implicit val settings = BulkLoaderSetting(40, None)
+      implicit val settings = BatchSettings(40, None)
       val reportIo = RtsTrades().enumTradeData(kestrelBulkLoader(Queue, client)) map (_.run)
       val report = reportIo.unsafePerformIO
 
@@ -68,7 +68,7 @@ class TradeDataToKestrelTest extends Spec {
 
       val client = mock(classOf[Client])
 
-      implicit val settings = BulkLoaderSetting(40, Some(50))
+      implicit val settings = BatchSettings(40, Some(50))
       val reportIo = RtsTrades().enumTradeData(kestrelBulkLoader(Queue, client)) map (_.run)
       val report = reportIo.unsafePerformIO
 
@@ -86,7 +86,7 @@ class TradeDataToKestrelTest extends Spec {
 
       val client = mock(classOf[Client])
 
-      implicit val settings = BulkLoaderSetting(40, Some(20))
+      implicit val settings = BatchSettings(40, Some(20))
       val reportIo = RtsTrades().enumTradeData(kestrelBulkLoader(Queue, client)) map (_.run)
       val report = reportIo.unsafePerformIO
 
@@ -104,7 +104,7 @@ class TradeDataToKestrelTest extends Spec {
 
       val client = mock(classOf[Client])
 
-      implicit val settings = BulkLoaderSetting(1, None)
+      implicit val settings = BatchSettings(1, None)
       val reportIo = RtsTrades().enumTradeData(kestrelBulkLoader(Queue, client)) map (_.run)
       val report = reportIo.unsafePerformIO
 
