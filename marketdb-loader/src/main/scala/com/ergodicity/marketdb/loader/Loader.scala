@@ -7,18 +7,17 @@ import com.twitter.ostrich.admin.{RuntimeEnvironment, Service}
 import com.twitter.ostrich.stats.Stats
 import com.ergodicity.marketdb.model.TradePayload
 import scalaz.IterV
-import util.LoaderReport
 
 object Loader {
   val log = LoggerFactory.getLogger(getClass.getName)
 
-  var loader: Loader = null
+  var loader: Loader[_] = null
   var runtime: RuntimeEnvironment = null
 
   def main(args: Array[String]) {
     try {
       runtime = RuntimeEnvironment(this, args)
-      loader = runtime.loadRuntimeConfig[Loader]()
+      loader = runtime.loadRuntimeConfig[Loader[_]]()
       loader.start()
     } catch {
       case e =>
@@ -28,8 +27,8 @@ object Loader {
   }
 }
 
-class Loader(interval: Interval, loader: TradeLoader, i: IterV[TradePayload, LoaderReport[TradePayload]]) extends Service {
-  val log = LoggerFactory.getLogger(classOf[Loader])
+class Loader[E](interval: Interval, loader: TradeLoader, i: IterV[TradePayload, E]) extends Service {
+  val log = LoggerFactory.getLogger(classOf[Loader[_]])
 
   if (loader == null) {
     throw new IllegalStateException("Loader not defined")

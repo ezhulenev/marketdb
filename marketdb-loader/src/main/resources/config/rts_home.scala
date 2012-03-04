@@ -1,5 +1,5 @@
 import com.ergodicity.marketdb.loader.util.{BatchSettings, Iteratees}
-import com.ergodicity.marketdb.loader.{KestrelConfig, KestrelSettings, RtsTradeLoader, LoaderConfig}
+import com.ergodicity.marketdb.loader.{KestrelLoaderConfig, KestrelSettings, RtsTradeLoader, LoaderConfig}
 import com.ergodicity.marketdb.model.TradePayload
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.kestrel.Client
@@ -8,7 +8,7 @@ import java.io.File
 import Iteratees._
 import org.slf4j.LoggerFactory
 
-new KestrelConfig(KestrelSettings("localhost", 22133, "trades", 10), BatchSettings(100, Some(1000))) {
+new KestrelLoaderConfig(KestrelSettings("localhost", 22133, "trades", 10), BatchSettings(100, Some(1000))) {
   admin.httpPort = 10000
 
   val dir = new File("D:\\data\\rts")
