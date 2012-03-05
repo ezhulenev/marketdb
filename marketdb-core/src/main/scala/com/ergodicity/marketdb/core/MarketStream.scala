@@ -155,6 +155,8 @@ object TradesStream {
         )
       }
 
+      recv(None)
+
       TradesHandle(trades.recv, error.recv, close.send(()))
     }
   }

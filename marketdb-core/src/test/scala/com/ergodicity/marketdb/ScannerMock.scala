@@ -1,7 +1,6 @@
 package com.ergodicity.marketdb
 
 import model._
-import model.Contract._
 import org.mockito.Mockito._
 import org.junit.runner.RunWith
 import org.powermock.modules.junit4.PowerMockRunner
@@ -13,9 +12,17 @@ import collection.JavaConversions
 import org.hbase.async._
 import org.junit.Test
 import org.joda.time.DateTime
+import collection.JavaConversions._
+import sbinary.Operations._
+import TradeProtocol._
+import org.mockito.stubbing.Answer
+import org.mockito.invocation.InvocationOnMock
 
 object ScannerMock {
   val DefaultRowsCount = 10
+
+  def apply(trades: Seq[TradePayload], batchSize: Int = DefaultRowsCount) =
+    fromTradePayloads(trades, batchSize)
 
   val Family = ByteArray("id").toArray
 
@@ -27,6 +34,11 @@ object ScannerMock {
         val k = TradeRow(marketId(payload.market), codeId(payload.code), payload.time)
         new KeyValue(k.toArray, Family, Bytes.fromLong(payload.tradeId), toByteArray(payload))
     }
+  }
+
+  def fromTradePayloads(values: Seq[TradePayload], batchSize: Int = DefaultRowsCount)
+                       (implicit marketId: Market => ByteArray, codeId: Code => ByteArray) = {
+    fromKeyValues(tradesToKeyValues(values), batchSize)
   }
 
   def fromKeyValues(values: Seq[KeyValue], batchSize: Int = DefaultRowsCount) = {
@@ -42,8 +54,11 @@ object ScannerMock {
       }
     }
 
-    def nextRows = {
-      val grouped = nextBatch().groupBy(kv => ByteArray(kv.key()))
+    def nextRows: ArrayList[ArrayList[KeyValue]] = {
+      val batch = nextBatch()
+      if (batch == null) return null
+
+      val grouped = batch.groupBy(kv => ByteArray(kv.key()))
       val list = new ArrayList[ArrayList[KeyValue]]()
       grouped.keys.foreach {
         key =>
@@ -54,7 +69,9 @@ object ScannerMock {
     }
 
     val scanner = mock(classOf[Scanner])
-    when(scanner.nextRows()).thenReturn(Deferred.fromResult(nextRows))
+    when(scanner.nextRows()).thenAnswer(new Answer[Deferred[ArrayList[ArrayList[KeyValue]]]] {
+      def answer(invocation: InvocationOnMock) = Deferred.fromResult(nextRows)
+    })
     scanner
   }
 }
@@ -94,7 +111,7 @@ class ScannerMockTest {
     val payload2 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 1, 0), 11l, true)
     val payload3 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), 11l, true)
 
-    val scanner = fromKeyValues(tradesToKeyValues(Seq(payload1, payload2, payload3)))
+    val scanner = fromTradePayloads(Seq(payload1, payload2, payload3))
 
     val rows = scanner.nextRows().joinUninterruptibly
     log.info("Rows size: " + rows.size())
@@ -103,5 +120,39 @@ class ScannerMockTest {
     assert(rows.size() == 2)
     assert(rows.get(0).size == 2)
     assert(rows.get(1).size == 1)
+  }
+  
+  @Test
+  def testSplitToBatches() {
+    var list = List[TradePayload]()
+    for (i <- 1 to 95) {
+      val payload = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, i), i, true)
+      list = payload :: list
+    }
+    
+    val scanner = fromTradePayloads(list.toSeq, batchSize = 10)
+
+    for (i <- 1 to 9) {
+      val rows = scanner.nextRows().joinUninterruptibly()
+      log.info("#" + i + ": Trades size: " + toTrades(rows).size + "; " + toTrades(rows).toList.map(_.tradeId))
+
+      assert(rows.size() == 1)
+      assert(rows.get(0).size == 10)
+    }
+
+    val rows = scanner.nextRows().joinUninterruptibly()
+    log.info("Last trades size: " + toTrades(rows).size + "; " + toTrades(rows).toList.map(_.tradeId))
+    assert(rows.size() == 1)
+    assert(rows.get(0).size == 5)
+
+    assert(scanner.nextRows().joinUninterruptibly() == null)
+  }
+
+  private def toTrades(rows: ArrayList[ArrayList[KeyValue]]) = asScalaIterator(rows.iterator()) flatMap {
+    row =>
+      asScalaIterator(row.iterator())
+  } map {
+    kv =>
+      fromByteArray[TradePayload](kv.value())
   }
 }
