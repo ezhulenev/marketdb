@@ -16,16 +16,15 @@ import java.util.concurrent.TimeUnit
 import org.slf4j.LoggerFactory
 
 
-trait MarketDBService extends Service
-
+trait MarketLoader extends MarketService
 
 /**
  * Reads trade data from Kestrel queue, and push it to marketDB
  * @param marketDb marketDB
  * @param config Kestrel server & queue config
  */
-class KestrelTradesReader(val marketDb: MarketDB, config: KestrelConfig) extends MarketDBService {
-  val log = LoggerFactory.getLogger(classOf[KestrelTradesReader])
+class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends MarketService {
+  val log = LoggerFactory.getLogger(classOf[KestrelLoader])
 
   log.info("Create marketDB Kestrel loader for configuration: " + config)
 

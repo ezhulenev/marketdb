@@ -7,6 +7,9 @@ import com.ergodicity.marketdb.TimeRecording
 import com.ergodicity.marketdb.model._
 import java.io.File
 import com.twitter.ostrich.admin.RuntimeEnvironment
+import com.twitter.util.Future
+import org.scala_tools.time.Implicits._
+import collection.JavaConversions
 
 class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
   override val log = LoggerFactory.getLogger(classOf[MarketDBIntegrationTest])
@@ -30,6 +33,50 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
       val reaction = recordTime("Reaction", () => futureReaction.apply())
 
       log.info("Trade reaction: " + reaction)
+    }
+
+    it("should persist new trades and scan them later") {
+      val time1 = new DateTime(1970, 01, 01, 1, 0, 0, 0)
+      val time2 = new DateTime(1970, 01, 01, 1, 0, 1, 0)
+      
+      val payload1 = TradePayload(market, code, contract, BigDecimal("111"), 1, time1, 111l, true)
+      val payload2 = TradePayload(market, code, contract, BigDecimal("112"), 1, time2, 112l, true)
+      
+      val f1 = marketDB.addTrade(payload1)
+      val f2 = marketDB.addTrade(payload2)
+      
+      // Wait for trades persisted
+      Future.join(List(f1, f2))()
+      
+      // -- Verify two rows for 1970 Jan 1
+      val interval = new DateTime(1970, 01, 01, 0, 0, 0, 0) to new DateTime(1970, 01, 01, 23, 0, 0, 0)
+      val scanner = marketDB.scan(market, code, interval)()
+
+      val rows = scanner.nextRows().joinUninterruptibly()
+      log.info("ROWS Jan 1: "+rows)
+
+      import sbinary.Operations._
+      import TradeProtocol._
+      val trades = for (list <- JavaConversions.asScalaIterator(rows.iterator());
+           kv <- JavaConversions.asScalaIterator(list.iterator())) yield fromByteArray[TradePayload](kv.value());
+      
+      trades foreach {trade => log.info("Trade: "+trade)}
+
+      assert(rows.size() == 1)
+      assert(rows.get(0).size() == 2)
+
+      assert(scanner.nextRows().joinUninterruptibly() == null)
+    }
+
+    it("should return null if no trades exists") {
+      // -- Verify two rows for 1970 Feb 1
+      val interval = new DateTime(1970, 02, 01, 0, 0, 0, 0) to new DateTime(1970, 02, 01, 23, 0, 0, 0)
+      val scanner = marketDB.scan(market, code, interval)()
+
+      val rows = scanner.nextRows().joinUninterruptibly()
+      log.info("ROWS Feb1 1: "+rows)
+
+      assert(rows == null)
     }
   }
 }

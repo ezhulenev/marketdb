@@ -10,6 +10,9 @@ import com.twitter.ostrich.admin.{Service, RuntimeEnvironment}
 import com.twitter.util.{Promise, Future}
 import com.twitter.ostrich.stats.Stats
 import java.util.concurrent.atomic.AtomicBoolean
+import org.joda.time.Interval
+
+trait MarketService extends Service
 
 case class TradePersisted(payload: TradePayload)
 
@@ -36,7 +39,7 @@ object MarketDB {
 }
 
 class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvider: UIDProvider,
-               val tradesTable: String, serviceBuilders: Seq[MarketDB => MarketDBService] = Seq()) extends Service {
+               val tradesTable: String, serviceBuilders: Seq[MarketDB => MarketService] = Seq()) extends Service {
 
   val log = LoggerFactory.getLogger(classOf[MarketDB])
   val ColumnFamily = ByteArray("id")
@@ -55,6 +58,25 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
     MarketDB.stopped.set(true)
     services foreach {_.shutdown()}
     log.info("marketDB stopped")
+  }
+  
+  def scan(market: Market, code: Code, interval: Interval) = {
+    log.info("Scan marketDB for market="+market.value+"; Code="+code.value+"; Interval="+interval)
+
+    // Get Unique Ids for market and code
+    val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(market.value)}
+    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(code.value)}
+
+    (marketUid join codeUid) map {
+      tuple =>
+        val startKey = TradeRow(tuple._1.id, tuple._2.id, interval.getStart)
+        val stopKey = TradeRow(tuple._1.id, tuple._2.id, interval.getEnd) ++ ByteArray(0)
+
+        val scanner = client.newScanner(ByteArray(tradesTable).toArray)
+        scanner.setStartKey(startKey.toArray)
+        scanner.setStopKey(stopKey.toArray)
+        scanner
+    }
   }
 
   def addTrade(payload: TradePayload) = {

@@ -15,7 +15,7 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
   var tradesTable = "market-trades"
   var uidTable = "market-uid"
   
-  var services: Seq[MarketDB => MarketDBService] = Seq()
+  var services: Seq[MarketDB => MarketService] = Seq()
 
   def apply(runtime: RuntimeEnvironment) = {
     log.info("Build new marketDB configuration")

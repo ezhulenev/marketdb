@@ -6,6 +6,7 @@ import Behaviors._
 import sbinary._
 import Operations._
 import com.ergodicity.marketdb.core.MarketDB
+import org.joda.time.DateTime
 
 object Trade extends AggregateFactory[Trade, TradeEvent] {
 
@@ -15,6 +16,16 @@ object Trade extends AggregateFactory[Trade, TradeEvent] {
 
   private def applyCreated = handler {
     event: TradeReceived => DraftTrade(event.payload)
+  }
+}
+
+object TradeRow {
+  def apply(marketId: ByteArray, codeId: ByteArray, time: DateTime): ByteArray = {
+    val year = ByteArray(time.getYear)
+    val day = ByteArray(time.getDayOfYear)
+    val minute = ByteArray(time.getMinuteOfDay)
+
+    marketId ++ codeId ++ year ++ day ++ minute;
   }
 }
 
@@ -35,7 +46,7 @@ case class DraftTrade(payload: TradePayload) extends Trade {
 
 case class EnrichedTrade(marketId: ByteArray, codeId: ByteArray, payload: TradePayload) extends Trade {
 
-  def serializeTrade() : Behavior[BinaryTrade] = {
+  def serializeTrade(): Behavior[BinaryTrade] = {
     import MarketDB._
     import TradeProtocol._
 
@@ -43,12 +54,7 @@ case class EnrichedTrade(marketId: ByteArray, codeId: ByteArray, payload: TradeP
       _ =>
         guard(codeId.length == CodeIdWidth, "Code width '" + codeId.length + "' not equals to expected: " + CodeIdWidth) flatMap {
           _ =>
-
-            val year = ByteArray(payload.time.getYear)
-            val day = ByteArray(payload.time.getDayOfYear)
-            val minute = ByteArray(payload.time.getMinuteOfDay)
-            val row = marketId ++ codeId ++ year ++ day ++ minute;
-
+            val row = TradeRow(marketId, codeId, payload.time)
             val qualifier = ByteArray(payload.tradeId)
 
             applyTradeSerialized(TradeSerialized(row, qualifier, ByteArray(toByteArray(payload))))
@@ -63,6 +69,6 @@ case class EnrichedTrade(marketId: ByteArray, codeId: ByteArray, payload: TradeP
   }
 }
 
-case class BinaryTrade(row: ByteArray,  qualifier: ByteArray,  payload: ByteArray) extends Trade {
+case class BinaryTrade(row: ByteArray, qualifier: ByteArray, payload: ByteArray) extends Trade {
   def applyEvent = unhandled
 }
