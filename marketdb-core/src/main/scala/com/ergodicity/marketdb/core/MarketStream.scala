@@ -11,6 +11,7 @@ import com.ergodicity.marketdb.AsyncHBase._
 import sbinary.Operations._
 import com.ergodicity.marketdb.model.TradeProtocol._
 import JavaConversions._
+import java.util.concurrent.atomic.AtomicBoolean
 
 trait MarketStream
 
@@ -88,11 +89,13 @@ object TradesHandle {
 object TradesStreamExhaustedException extends Exception
 
 trait TradesStream extends MarketStream {
-  def read(): TradesHandle
+  def open(): TradesHandle
 }
 
 object TradesStream {
   def apply(scanner: Scanner) = new TradesStream {
+
+    val opened = new AtomicBoolean(false)
 
     private def nextTradesFromUnderlyingScanner(): Future[Option[Iterator[TradePayload]]] = {
       val promise = new Promise[Option[Iterator[TradePayload]]]
@@ -115,7 +118,12 @@ object TradesStream {
       promise
     }
     
-    def read() = {
+    def open() = {
+
+      if (!opened.compareAndSet(false, true)) {
+        throw new IllegalStateException("Can't open TradesStream more than once")
+      }
+
       val error = new Broker[Throwable]
       val trades = new Broker[ReadTrade]
       val close = new Broker[Unit]

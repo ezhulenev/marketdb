@@ -22,8 +22,8 @@ import com.twitter.finagle.kestrel.ReadClosedException
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[Scanner]))
-class MarketStreamTest {
-  val log = LoggerFactory.getLogger(classOf[MarketStreamTest])
+class TradesStreamTest {
+  val log = LoggerFactory.getLogger(classOf[TradesStreamTest])
 
   val market = Market("RTS")
   val code = Code("RIH")
@@ -32,6 +32,24 @@ class MarketStreamTest {
 
   implicit val marketId = (_: Market) => ByteArray(0)
   implicit val codeId = (_: Code) => ByteArray(1)
+  
+  @Test
+  def testOpenOnce() {
+    val scanner = mock(classOf[Scanner])
+    when(scanner.nextRows()).thenAnswer(new Answer[Deferred[ArrayList[ArrayList[KeyValue]]]] {
+      def answer(invocation: InvocationOnMock) = Deferred.fromResult[ArrayList[ArrayList[KeyValue]]](null)
+    })
+    val stream = TradesStream(scanner)
+
+    // -- First success
+    stream.open()
+
+    // -- Second should fail
+    import org.scalatest.Assertions._
+    intercept[IllegalStateException] {
+      stream.open()      
+    }    
+  } 
 
   @Test
   def testMarketStreamFailed() {
@@ -42,7 +60,7 @@ class MarketStreamTest {
     })
 
     val stream = TradesStream(scanner)
-    val handle = stream.read()
+    val handle = stream.open()
 
     handle.error foreach {
       case e: HBaseException =>
@@ -66,7 +84,7 @@ class MarketStreamTest {
 
     val scanner = ScannerMock(payloads)
     val stream = TradesStream(scanner)
-    val handle = stream.read()
+    val handle = stream.open()
 
     var exhausted = false
     handle.error foreach {case TradesStreamExhaustedException =>
@@ -95,7 +113,7 @@ class MarketStreamTest {
 
     val scanner = ScannerMock(payloads)
     val stream = TradesStream(scanner)
-    val handle = stream.read()
+    val handle = stream.open()
 
     var exhausted = false
     handle.error foreach {case TradesStreamExhaustedException =>
@@ -134,7 +152,7 @@ class MarketStreamTest {
     val err = mock(classOf[HBaseException])
     val scanner = ScannerMock(payloads, 2, Some(10, err))
     val stream = TradesStream(scanner)
-    val handle = stream.read()
+    val handle = stream.open()
 
     handle.error foreach {
       case e: HBaseException => assert(true)
@@ -171,7 +189,7 @@ class MarketStreamTest {
 
     val scanner = ScannerMock(payloads)
     val stream = TradesStream(scanner)
-    val handle = stream.read()
+    val handle = stream.open()
     
     var closed = false
     handle.error foreach {
@@ -202,7 +220,7 @@ class MarketStreamTest {
 
     val scanner = ScannerMock(payloads)
     val stream = TradesStream(scanner)
-    val handle = stream.read().buffered(10)
+    val handle = stream.open().buffered(10)
 
     var closed = false
     handle.error foreach {
@@ -233,7 +251,7 @@ class MarketStreamTest {
 
     val scanner = ScannerMock(payloads)
     val stream = TradesStream(scanner)
-    val handle = stream.read().buffered(1000)
+    val handle = stream.open().buffered(1000)
 
     var exhausted = false
     handle.error foreach {
@@ -264,7 +282,7 @@ class MarketStreamTest {
     val err = mock(classOf[HBaseException])
     val scanner = ScannerMock(payloads, 2, Some(10, err))
     val stream = TradesStream(scanner)
-    val handle = stream.read().buffered(size)
+    val handle = stream.open().buffered(size)
 
     handle.error foreach {
       case e: HBaseException => assert(true)
@@ -290,7 +308,7 @@ class MarketStreamTest {
 
     val scanner = ScannerMock(payloads, 2)
     val stream = TradesStream(scanner)
-    val handle = stream.read().buffered(size)
+    val handle = stream.open().buffered(size)
 
     var exhausted = false
     handle.error foreach {case TradesStreamExhaustedException =>

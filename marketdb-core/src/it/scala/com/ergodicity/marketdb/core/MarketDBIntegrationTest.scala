@@ -83,15 +83,15 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
     }
 
     it("should persist new trades and read them with stream") {
-      readWithTradeStream(marketDB) {_.read()}
+      readWithTradeStream(marketDB) {_.open()}
     }
 
     it("should persist new trades and read them with buffered stream (size=10)") {
-      readWithTradeStream(marketDB) {_.read().buffered(10)}
+      readWithTradeStream(marketDB) {_.open().buffered(10)}
     }
 
     it("should persist new trades and read them with buffered stream (size=100)") {
-      readWithTradeStream(marketDB) {_.read().buffered(100)}
+      readWithTradeStream(marketDB) {_.open().buffered(100)}
     }
   }
 
