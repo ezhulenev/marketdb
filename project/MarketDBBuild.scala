@@ -56,7 +56,7 @@ object Dependencies {
 
   val api = Seq(sbinary, jodaTime, jodaConvert)
 
-  val core = Seq(ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++
+  val core = Seq(zmqScalaBinding, ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++
     Seq(Test.springTest, Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
 
   val loader = Seq(ostrich, finagleCore, finagleKestrel, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz) ++
@@ -76,7 +76,7 @@ object Dependency {
     val Mockito      = "1.8.1"
     val Powermock    = "1.4.11"
     val Scalacheck   = "1.9"
-    val AsyncHBase   = "1.2.0-SNAPSHOT"
+    val AsyncHBase   = "1.1.0"
     val Scalaz       = "6.0.4"
     val Cglib        = "2.2.2"
     val Logback      = "1.0.0"
@@ -89,6 +89,7 @@ object Dependency {
     val HttpClient   = "3.1"
     val ScalaIO      = "0.3.0"
     val Ostrich      = "4.10.6"
+    val ZmqScala     = "0.0.5"
   }
 
   // Compile
@@ -111,6 +112,7 @@ object Dependency {
   val scalaTime         = "org.scala-tools.time"             %% "time"                   % V.ScalaTime
   val httpClient        = "commons-httpclient"                % "commons-httpclient"     % V.HttpClient
   val scalaIO           = "com.github.scala-incubator.io"    %% "scala-io-core"          % V.ScalaIO
+  val zmqScalaBinding   = "org.zeromq"                       %% "zeromq-scala-binding"   % V.ZmqScala
 
   // Provided
 
