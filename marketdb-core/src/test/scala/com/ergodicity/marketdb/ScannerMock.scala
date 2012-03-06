@@ -20,9 +20,11 @@ import org.mockito.invocation.InvocationOnMock
 
 object ScannerMock {
   val DefaultRowsCount = 10
+  val log = LoggerFactory.getLogger("ScannerMock")
 
-  def apply(trades: Seq[TradePayload], batchSize: Int = DefaultRowsCount) =
-    fromTradePayloads(trades, batchSize)
+  def apply(trades: Seq[TradePayload], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
+           (implicit marketId: Market => ByteArray, codeId: Code => ByteArray) =
+    fromTradePayloads(trades, batchSize, failOnBatch)
 
   val Family = ByteArray("id").toArray
 
@@ -36,15 +38,16 @@ object ScannerMock {
     }
   }
 
-  def fromTradePayloads(values: Seq[TradePayload], batchSize: Int = DefaultRowsCount)
+  def fromTradePayloads(values: Seq[TradePayload], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
                        (implicit marketId: Market => ByteArray, codeId: Code => ByteArray) = {
-    fromKeyValues(tradesToKeyValues(values), batchSize)
+    fromKeyValues(tradesToKeyValues(values), batchSize, failOnBatch)
   }
 
-  def fromKeyValues(values: Seq[KeyValue], batchSize: Int = DefaultRowsCount) = {
+  def fromKeyValues(values: Seq[KeyValue], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None) = {
     var pointer = 0
 
     def nextBatch() = {
+      log.info("Fetch next rows batch")
       if (pointer >= values.size) {
         null
       } else {
@@ -70,7 +73,18 @@ object ScannerMock {
 
     val scanner = mock(classOf[Scanner])
     when(scanner.nextRows()).thenAnswer(new Answer[Deferred[ArrayList[ArrayList[KeyValue]]]] {
-      def answer(invocation: InvocationOnMock) = Deferred.fromResult(nextRows)
+      var batch = 0
+
+      def answer(invocation: InvocationOnMock) = {
+        // -- Check if wee need to fail
+        if (failOnBatch.isDefined && failOnBatch.get._1 <= batch) {
+          log.info("Fail on batch #" + batch + "; With err=" + failOnBatch.get._2)
+          Deferred.fromError[ArrayList[ArrayList[KeyValue]]](failOnBatch.get._2)
+        } else {
+          batch = batch + 1
+          Deferred.fromResult(nextRows)
+        }
+      }
     })
     scanner
   }
@@ -120,6 +134,27 @@ class ScannerMockTest {
     assert(rows.size() == 2)
     assert(rows.get(0).size == 2)
     assert(rows.get(1).size == 1)
+  }
+  
+  @Test
+  def testFailOnBatch() {
+    val payload1 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, 0), 11l, true)
+    val payload2 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 1, 0), 11l, true)
+    val payload3 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), 11l, true)
+
+    val err = mock(classOf[HBaseException])
+    val scanner = fromTradePayloads(Seq(payload1, payload2, payload3), 1, Some(1, err))
+
+    // -- First batch Success
+    val rows = scanner.nextRows().joinUninterruptibly
+    assert(rows.size() == 1)
+    assert(rows.get(0).size == 1)
+
+    // -- Expected failure on second batch
+    import org.scalatest.Assertions._
+    intercept[HBaseException] {
+      scanner.nextRows().joinUninterruptibly()
+    }
   }
   
   @Test

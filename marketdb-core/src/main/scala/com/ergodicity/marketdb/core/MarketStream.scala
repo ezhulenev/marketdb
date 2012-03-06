@@ -85,7 +85,7 @@ object TradesHandle {
   }
 }
 
-object TradesStreamStoppedException extends Exception
+object TradesStreamExhaustedException extends Exception
 
 trait TradesStream extends MarketStream {
   def read(): TradesHandle
@@ -120,8 +120,8 @@ object TradesStream {
       val trades = new Broker[ReadTrade]
       val close = new Broker[Unit]
 
-      def recv(data: Option[Iterator[TradePayload]]) {
-        val reply = data.map(i => Future(Some(i))) getOrElse nextTradesFromUnderlyingScanner
+      def recv(data: Iterator[TradePayload]) {
+        val reply = if (data.hasNext) Future(Some(data)) else nextTradesFromUnderlyingScanner()
 
         Offer.select(
           reply.toOffer {
@@ -130,13 +130,13 @@ object TradesStream {
               trades ! ReadTrade(iter.next(), ack.send())
               
               Offer.select(
-                ack.recv { _ => recv(if (iter.hasNext) Some(iter) else None) },
+                ack.recv { _ => recv(iter) },
                 close.recv { t => scanner.close(); error ! ReadClosedException }
               )
 
             case Return(None) =>
               scanner.close()
-              error ! TradesStreamStoppedException
+              error ! TradesStreamExhaustedException
               
             case Return(_) =>
               scanner.close()
@@ -155,7 +155,7 @@ object TradesStream {
         )
       }
 
-      recv(None)
+      recv(Iterator.empty)
 
       TradesHandle(trades.recv, error.recv, close.send(()))
     }

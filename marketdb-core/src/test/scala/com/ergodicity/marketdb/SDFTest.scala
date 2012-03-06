@@ -2,7 +2,6 @@ package com.ergodicity.marketdb
 
 import scalaz._
 import Scalaz._
-import org.junit.Test
 import org.slf4j.LoggerFactory
 import java.text.SimpleDateFormat
 import java.util.Random
@@ -10,89 +9,15 @@ import collection.mutable.Stack
 import com.twitter.util.{Promise, Future}
 import com.twitter.concurrent.Offer
 import java.util.concurrent.atomic.AtomicReference
+import org.junit.{Ignore, Test}
 
 
+@Ignore
 class SDFTest {
   val log = LoggerFactory.getLogger(classOf[SDFTest])
 
   val sdf = new SimpleDateFormat("yyyyMMddHHmmssSSS")
   val sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS")
-
-  @Test
-  def offerTest() {
-    val stack = Stack(1)
-
-    log.info("TEST")
-
-    val offer = new Offer[Int] {
-      def poll() = {
-        log.error("POLL")
-        try {
-          val v = stack.pop()
-          log.info("VAL: "+v)
-          Some(() => v)
-        } catch {
-          case _ => None
-        }
-      }
-
-      def enqueue(setter: this.type#Setter) = {
-        log.error("ENQUEUE")
-        var stop = false
-        new Thread(new Runnable {
-          def run() {
-            while (!stop) {
-              try {
-                val v = stack.pop()
-                setter() map {_(v)}
-                stop = true
-              } catch {
-                case _ =>
-              }
-
-            }
-          }
-        }).start()
-        () => {stop = true}
-      }
-
-      def objects = Seq(stack)
-    }
-
-    offer foreach {
-      v => log.info("OFFERED: " + v)
-    }
-
-    new Thread(new Runnable() {
-      def run() {
-        for (i <- 1 to 10) {
-          Thread.sleep(80)
-          stack.push(i * 10)
-        }
-      }
-    }).start()
-
-    Thread.sleep(2000)
-  }
-  
-  @Test
-  def testOfferOnce() {
-    def offerOnce[A](value: A): Offer[A] = new Offer[A] {
-      val ref = new AtomicReference[Option[A]](Some(value))
-
-      def objects = Seq()
-
-      def poll() = {log.info("POOOOLLL"); ref.getAndSet(None).map(() => _)}
-
-      def enqueue(setter: this.type#Setter) = null
-    }
-    
-    val offer = offerOnce(1)
-    
-    offer foreach {v =>
-      log.info("OFFERED: "+v)
-    }
-  }
 
   @Test
   def test() {

@@ -10,6 +10,9 @@ import com.twitter.ostrich.admin.RuntimeEnvironment
 import com.twitter.util.Future
 import org.scala_tools.time.Implicits._
 import collection.JavaConversions
+import scala.Predef._
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
   override val log = LoggerFactory.getLogger(classOf[MarketDBIntegrationTest])
@@ -78,5 +81,54 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
 
       assert(rows == null)
     }
+
+    it("should persist new trades and read them with stream") {
+      readWithTradeStream(marketDB) {_.read()}
+    }
+
+    it("should persist new trades and read them with buffered stream (size=10)") {
+      readWithTradeStream(marketDB) {_.read().buffered(10)}
+    }
+
+    it("should persist new trades and read them with buffered stream (size=100)") {
+      readWithTradeStream(marketDB) {_.read().buffered(100)}
+    }
+  }
+
+  private def readWithTradeStream(marketDB: MarketDB)(f: TradesStream => TradesHandle) {
+    val payloads = for (m <- 0 to 59;
+                        s <- 0 to 59)
+    yield TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(1971, 01, 01, 1, m, s, 0), s + m * 60, true)
+
+    log.info("Payloads size: " + payloads.size)
+
+    val fs = payloads.map(marketDB.addTrade(_))
+
+    // Wait for trades persisted
+    Future.join(fs)()
+
+    val interval = new DateTime(1971, 01, 01, 0, 0, 0, 0) to new DateTime(1971, 01, 01, 23, 0, 0, 0)
+    val scanner = marketDB.scan(market, code, interval)()
+
+    // -- Read trades with stream
+    val stream = TradesStream(scanner)
+    val handle = f(stream)
+
+    val exhaustedLatch = new java.util.concurrent.CountDownLatch(1)
+    handle.error foreach {
+      case TradesStreamExhaustedException => exhaustedLatch.countDown()
+    }
+
+    val counter = new AtomicInteger()
+    handle.trades foreach {
+      t =>
+        counter.incrementAndGet()
+        t.ack()
+    }
+
+    exhaustedLatch.await(10, TimeUnit.SECONDS)
+
+    log.info("Counter: " + counter.get())
+    assert(scanner.nextRows().joinUninterruptibly() == null)
   }
 }
