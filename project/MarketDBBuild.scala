@@ -20,7 +20,9 @@ object MarketDBBuild extends Build {
     id = "marketdb-api",
     base = file("marketdb-api"),
     settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.api)
-  )
+  ).configs( IntegrationTest )
+    .settings( Defaults.itSettings : _*)
+
   lazy val marketdbCore = Project(
     id = "marketdb-core",
     base = file("marketdb-core"),
@@ -54,7 +56,7 @@ object MarketDBBuild extends Build {
 object Dependencies {
   import Dependency._
 
-  val api = Seq(sbinary, jodaTime, jodaConvert)
+  val api = Seq(sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
 
   val core = Seq(zmqScalaBinding, ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++
     Seq(Test.springTest, Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
