@@ -21,13 +21,37 @@ class StreamProtocolSpec extends Spec {
 
       val mess = OpenStream(Market("RTS"), Code("RIH"), start to end)
 
-      val bytes = toByteArray[StreamMessage](mess)
+      val bytes = toByteArray[StreamControlMessage](mess)
       log.info("Bytes lenght=" + bytes.size + "; Bytes = " + Arrays.toString(bytes))
 
-      val fromBytes = fromByteArray[StreamMessage](bytes)
+      val fromBytes = fromByteArray[StreamControlMessage](bytes)
       
       assert(fromBytes match {
         case OpenStream(Market("RTS"), Code("RIH"), i) => i.start == start && i.end == end
+        case _ => false
+      })
+    }
+
+    it("should serialize/deserialize StreamOpened") {
+      val mess = StreamOpened(StreamIdentifier("Test"))
+
+      val bytes = toByteArray[StreamControlMessage](mess)
+      val fromBytes = fromByteArray[StreamControlMessage](bytes)
+
+      assert(fromBytes match {
+        case StreamOpened(StreamIdentifier("Test")) => true
+        case _ => false
+      })
+    }
+
+    it("should serialize/deserialize CloseStream") {
+      val mess = CloseStream(StreamIdentifier("Test"))
+
+      val bytes = toByteArray[StreamControlMessage](mess)
+      val fromBytes = fromByteArray[StreamControlMessage](bytes)
+
+      assert(fromBytes match {
+        case CloseStream(StreamIdentifier("Test")) => true
         case _ => false
       })
     }

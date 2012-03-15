@@ -56,9 +56,9 @@ object MarketDBBuild extends Build {
 object Dependencies {
   import Dependency._
 
-  val api = Seq(sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
+  val api = Seq(zeromq, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
 
-  val core = Seq(zmqScalaBinding, ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++
+  val core = Seq(zeromq, ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, asyncHBase, scalaz, cglib, jodaTime, jodaConvert) ++
     Seq(Test.springTest, Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface)
 
   val loader = Seq(ostrich, finagleCore, finagleKestrel, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz) ++
@@ -91,7 +91,10 @@ object Dependency {
     val HttpClient   = "3.1"
     val ScalaIO      = "0.3.0"
     val Ostrich      = "4.10.6"
-    val ZmqScala     = "0.0.5"
+
+    // Ergodicity dependencies
+    val Zeromq       = "0.1-SNAPSHOT"
+
   }
 
   // Compile
@@ -114,7 +117,7 @@ object Dependency {
   val scalaTime         = "org.scala-tools.time"             %% "time"                   % V.ScalaTime
   val httpClient        = "commons-httpclient"                % "commons-httpclient"     % V.HttpClient
   val scalaIO           = "com.github.scala-incubator.io"    %% "scala-io-core"          % V.ScalaIO
-  val zmqScalaBinding   = "org.zeromq"                       %% "zeromq-scala-binding"   % V.ZmqScala
+  val zeromq            = "com.ergodicity"                   %% "zeromq"                 % V.Zeromq
 
   // Provided
 

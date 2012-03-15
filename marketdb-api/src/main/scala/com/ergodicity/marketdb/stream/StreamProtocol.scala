@@ -1,9 +1,9 @@
 package com.ergodicity.marketdb.stream
 
-import com.ergodicity.marketdb.model.{Market, Code}
 import sbinary.Operations._
 import sbinary.{Output, Input, Format, DefaultProtocol}
 import org.joda.time.{DateTime, Interval}
+import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
 
 object StreamProtocol extends DefaultProtocol {
 
@@ -18,23 +18,49 @@ object StreamProtocol extends DefaultProtocol {
     }
   }
 
-  implicit object StreamMessageFormat extends Format[StreamMessage] {
+  implicit object StreamIdentifierFormat extends Format[StreamIdentifier] {
+    def reads(in: Input) = StreamIdentifier(read[String](in))
+
+    def writes(out: Output, value: StreamIdentifier) {
+      write[String](out, value.id)
+    }
+  }
+
+  implicit object StreamMessageFormat extends Format[StreamControlMessage] {
     def reads(in: Input) = read[Byte](in) match {
-      case 0 => OpenStream(read[Market](in), read[Code](in), read[Interval](in));
+      case 0 => OpenStream(read[Market](in), read[Code](in), read[Interval](in))
+      case 1 => StreamOpened(read[StreamIdentifier](in))
+      case 2 => CloseStream(read[StreamIdentifier](in))
       case _ => throw new RuntimeException("Unsupported strem message")
     }
 
-    def writes(out: Output, value: StreamMessage) = value match {
-      case o: OpenStream => 
+    def writes(out: Output, value: StreamControlMessage) = value match {
+      case open: OpenStream => 
         write[Byte](out, 0)
-        write[Market](out, o.market)
-        write[Code](out, o.code)
-        write[Interval](out, o.interval)
+        write[Market](out, open.market)
+        write[Code](out, open.code)
+        write[Interval](out, open.interval)
+      case opened: StreamOpened =>
+        write[Byte](out, 1)
+        write[StreamIdentifier](out, opened.stream)
+      case close: CloseStream =>
+        write[Byte](out, 2)
+        write[StreamIdentifier](out, close.stream)
+        
     }
   }
 
 }
 
-sealed abstract class StreamMessage
+case class StreamIdentifier(id: String)
 
-case class OpenStream(market: Market, code: Code, interval: Interval) extends StreamMessage
+sealed abstract class StreamControlMessage
+
+case class OpenStream(market: Market, code: Code, interval: Interval) extends StreamControlMessage
+case class StreamOpened(stream: StreamIdentifier) extends StreamControlMessage
+case class CloseStream(stream: StreamIdentifier) extends StreamControlMessage
+
+sealed abstract class StreamPayloadMessage
+
+case class Trades(trade: TradePayload)
+case class Completed()

@@ -22,8 +22,8 @@ import com.twitter.finagle.kestrel.ReadClosedException
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[Scanner]))
-class TradesStreamTest {
-  val log = LoggerFactory.getLogger(classOf[TradesStreamTest])
+class TradesScannerTest {
+  val log = LoggerFactory.getLogger(classOf[TradesScannerTest])
 
   val market = Market("RTS")
   val code = Code("RIH")
@@ -39,7 +39,7 @@ class TradesStreamTest {
     when(scanner.nextRows()).thenAnswer(new Answer[Deferred[ArrayList[ArrayList[KeyValue]]]] {
       def answer(invocation: InvocationOnMock) = Deferred.fromResult[ArrayList[ArrayList[KeyValue]]](null)
     })
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
 
     // -- First success
     stream.open()
@@ -52,14 +52,14 @@ class TradesStreamTest {
   } 
 
   @Test
-  def testMarketStreamFailed() {
+  def testMarketScannerFailed() {
     val scanner = mock(classOf[Scanner])
     
     when(scanner.nextRows()).thenAnswer(new Answer[Deferred[ArrayList[ArrayList[KeyValue]]]] {
       def answer(invocation: InvocationOnMock) = Deferred.fromError[ArrayList[ArrayList[KeyValue]]](mock(classOf[HBaseException]))
     })
 
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open()
 
     handle.error foreach {
@@ -78,17 +78,17 @@ class TradesStreamTest {
   }
 
   @Test
-  def testMarketStreamSuccess() {
+  def testMarketScannerSuccess() {
 
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val scanner = ScannerMock(payloads)
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open()
 
-    var exhausted = false
-    handle.error foreach {case TradesStreamExhaustedException =>
-      exhausted = true
+    var completed = false
+    handle.error foreach {case TradesScanCompleted =>
+      completed = true
     }
 
     val stack = Stack[TradePayload]()
@@ -100,24 +100,24 @@ class TradesStreamTest {
     }
 
     assert(stack.size == 100)
-    assert(exhausted)
+    assert(completed)
 
     // -- Verify scanner closed
     verify(scanner).close()
   }
 
   @Test
-  def testMarketStreamWithNoAck() {
+  def testMarketScannerWithNoAck() {
 
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val scanner = ScannerMock(payloads)
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open()
 
-    var exhausted = false
-    handle.error foreach {case TradesStreamExhaustedException =>
-      exhausted = true
+    var completed = false
+    handle.error foreach {case TradesScanCompleted =>
+      completed = true
     }
 
     val stack = Stack[TradePayload]()
@@ -128,30 +128,30 @@ class TradesStreamTest {
     }
 
     assert(stack.size == 1)
-    assert(!exhausted)
+    assert(!completed)
 
     // -- Verify scanner closed
     verify(scanner, never()).close()
   }
 
   @Test
-  def testBufferedStream_SmallBuffer() {
-    testBufferedStream(10)
+  def testBufferedScanner_SmallBuffer() {
+    testBufferedScanner(10)
   }
 
   @Test
-  def testBufferedStream_HugeBuffer() {
-    testBufferedStream(1000)
+  def testBufferedScanner_HugeBuffer() {
+    testBufferedScanner(1000)
   }
 
   @Test
-  def testMarketStreamFailOnBatchNumber() {
+  def testMarketScannerFailOnBatchNumber() {
 
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val err = mock(classOf[HBaseException])
     val scanner = ScannerMock(payloads, 2, Some(10, err))
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open()
 
     handle.error foreach {
@@ -174,21 +174,21 @@ class TradesStreamTest {
   }
 
   @Test
-  def testBufferedStreamFailOnBatchNumber_SmallBuffer() {
-    testBufferedStreamFailOnBatchNumber(10)
+  def testBufferedScannerFailOnBatchNumber_SmallBuffer() {
+    testBufferedScannerFailOnBatchNumber(10)
   }
 
   @Test
-  def testBufferedStreamFailOnBatchNumber_BigBuffer() {
-    testBufferedStreamFailOnBatchNumber(50)
+  def testBufferedScannerFailOnBatchNumber_BigBuffer() {
+    testBufferedScannerFailOnBatchNumber(50)
   }
 
   @Test
-  def testCloseMarketStream() {
+  def testCloseMarketScanner() {
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val scanner = ScannerMock(payloads)
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open()
     
     var closed = false
@@ -215,11 +215,11 @@ class TradesStreamTest {
   }
 
   @Test
-  def testCloseBufferedMarketStream() {
+  def testCloseBufferedMarketScanner() {
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val scanner = ScannerMock(payloads)
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open().buffered(10)
 
     var closed = false
@@ -246,16 +246,16 @@ class TradesStreamTest {
   }
 
   @Test
-  def testCloseBufferedMarketStream_BufferAll() {
+  def testCloseBufferedMarketScanner_BufferAll() {
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val scanner = ScannerMock(payloads)
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open().buffered(1000)
 
-    var exhausted = false
+    var completed = false
     handle.error foreach {
-      case TradesStreamExhaustedException => exhausted = true
+      case TradesScanCompleted => completed = true
       case _ => assert(false)
     }
 
@@ -270,18 +270,18 @@ class TradesStreamTest {
     }
 
     assert(stack.size == 100)
-    assert(exhausted)
+    assert(completed)
 
     // -- Verify scanner closed
     verify(scanner).close()
   }
 
-  private def testBufferedStreamFailOnBatchNumber(size: Int) {
+  private def testBufferedScannerFailOnBatchNumber(size: Int) {
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val err = mock(classOf[HBaseException])
     val scanner = ScannerMock(payloads, 2, Some(10, err))
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open().buffered(size)
 
     handle.error foreach {
@@ -303,16 +303,16 @@ class TradesStreamTest {
     verify(scanner).close()
   }
 
-  private def testBufferedStream(size: Int) {
+  private def testBufferedScanner(size: Int) {
     val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
 
     val scanner = ScannerMock(payloads, 2)
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = stream.open().buffered(size)
 
-    var exhausted = false
-    handle.error foreach {case TradesStreamExhaustedException =>
-      exhausted = true
+    var completed = false
+    handle.error foreach {case TradesScanCompleted =>
+      completed = true
     }
 
     val stack = Stack[TradePayload]()
@@ -324,7 +324,7 @@ class TradesStreamTest {
     }
 
     assert(stack.size == 100)
-    assert(exhausted)
+    assert(completed)
 
     // -- Verify scanner closed
     verify(scanner).close()

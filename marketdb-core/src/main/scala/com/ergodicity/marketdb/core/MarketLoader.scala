@@ -23,7 +23,7 @@ trait MarketLoader extends MarketService
  * @param marketDb marketDB
  * @param config Kestrel server & queue config
  */
-class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends MarketService {
+class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends MarketLoader {
   val log = LoggerFactory.getLogger(classOf[KestrelLoader])
 
   log.info("Create marketDB Kestrel loader for configuration: " + config)

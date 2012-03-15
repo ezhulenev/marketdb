@@ -13,7 +13,7 @@ import com.ergodicity.marketdb.model.TradeProtocol._
 import JavaConversions._
 import java.util.concurrent.atomic.AtomicBoolean
 
-trait MarketStream
+trait MarketScanner
 
 case class ReadTrade(payload: TradePayload, ack: Offer[Unit])
 
@@ -86,14 +86,14 @@ object TradesHandle {
   }
 }
 
-object TradesStreamExhaustedException extends Exception
+object TradesScanCompleted extends Exception
 
-trait TradesStream extends MarketStream {
+trait TradesScanner extends MarketScanner {
   def open(): TradesHandle
 }
 
-object TradesStream {
-  def apply(scanner: Scanner) = new TradesStream {
+object TradesScanner {
+  def apply(scanner: Scanner) = new TradesScanner {
 
     val opened = new AtomicBoolean(false)
 
@@ -121,7 +121,7 @@ object TradesStream {
     def open() = {
 
       if (!opened.compareAndSet(false, true)) {
-        throw new IllegalStateException("Can't open TradesStream more than once")
+        throw new IllegalStateException("Can't open TradesScanner more than once")
       }
 
       val error = new Broker[Throwable]
@@ -144,7 +144,7 @@ object TradesStream {
 
             case Return(None) =>
               scanner.close()
-              error ! TradesStreamExhaustedException
+              error ! TradesScanCompleted
               
             case Return(_) =>
               scanner.close()

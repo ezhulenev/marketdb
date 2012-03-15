@@ -95,7 +95,7 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
     }
   }
 
-  private def readWithTradeStream(marketDB: MarketDB)(f: TradesStream => TradesHandle) {
+  private def readWithTradeStream(marketDB: MarketDB)(f: TradesScanner => TradesHandle) {
     val payloads = for (m <- 0 to 59;
                         s <- 0 to 59)
     yield TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(1971, 01, 01, 1, m, s, 0), s + m * 60, true)
@@ -111,12 +111,12 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
     val scanner = marketDB.scan(market, code, interval)()
 
     // -- Read trades with stream
-    val stream = TradesStream(scanner)
+    val stream = TradesScanner(scanner)
     val handle = f(stream)
 
     val exhaustedLatch = new java.util.concurrent.CountDownLatch(1)
     handle.error foreach {
-      case TradesStreamExhaustedException => exhaustedLatch.countDown()
+      case TradesScanCompleted => exhaustedLatch.countDown()
     }
 
     val counter = new AtomicInteger()
