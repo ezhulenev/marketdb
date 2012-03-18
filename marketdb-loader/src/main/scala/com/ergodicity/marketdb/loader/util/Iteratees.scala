@@ -3,13 +3,13 @@ package com.ergodicity.marketdb.loader.util
 import scalaz._
 import IterV._
 import scalaz.{Input, IterV}
-import com.ergodicity.marketdb.model.TradePayload
 import org.slf4j.LoggerFactory
 import org.jboss.netty.buffer.ChannelBuffers
 import com.twitter.finagle.kestrel.Client
 import com.twitter.ostrich.stats.Stats
 import com.twitter.concurrent.Offer
 import java.util.concurrent.atomic.AtomicReference
+import com.ergodicity.zeromq.{Serializer, Client => ZMQClient}
 
 case class LoaderReport[E](count: Int, list: List[E])
 
@@ -38,14 +38,23 @@ object Iteratees {
   def kestrelBulkLoader[E](queue: String, client: Client)
                           (implicit serializer: List[E] => Array[Byte], settings: BatchSettings): IterV[E, LoaderReport[E]] = {
 
-    def flush(list: List[E]) {
+    bulkLoader(settings) {list: List[E] =>
       val bytes = serializer(list)
-      client.write(queue, OfferOnce(ChannelBuffers.wrappedBuffer(bytes)))      
+      client.write(queue, OfferOnce(ChannelBuffers.wrappedBuffer(bytes)))
     }
+  }
 
+  def zmqBulkLoader[E](client: ZMQClient)
+                      (implicit serializer: Serializer[List[E]], settings: BatchSettings): IterV[E, LoaderReport[E]] = {
+    bulkLoader(settings) {list: List[E] =>
+      client.send(list)
+    }
+  }
+  
+  private def bulkLoader[E](settings: BatchSettings)(flush: List[E] => Unit) = {
     def flushIfRequired(e: E, rep: LoaderReport[E]) = {
       if (rep.list.size >= settings.size) {
-        log.info("Flush data to channel; Position: " + rep.count + "; Size: " + rep.list.size)
+        log.info("Flush data; Position: " + rep.count + "; Size: " + rep.list.size)
         flush(rep.list)
         LoaderReport(rep.count+1, e :: Nil)
       } else {
@@ -79,8 +88,9 @@ object Iteratees {
         eof = Done(LoaderReport(0, Nil), EOF[E]))
     }
 
-    Cont(first)
+    Cont(first)    
   }
+
 
   def counter[E]: IterV[E, Int] = {
     def step(is: Int, e: E)(s: Input[E]): IterV[E, Int] = {

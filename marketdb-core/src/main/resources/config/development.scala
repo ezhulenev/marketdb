@@ -1,4 +1,4 @@
-import com.ergodicity.marketdb.core.{KestrelLoader, MarketDB, KestrelConfig, MarketDBConfig}
+import com.ergodicity.marketdb.core._
 import com.twitter.ostrich.admin.config.{StatsConfig, JsonStatsLoggerConfig, TimeSeriesCollectorConfig}
 
 new MarketDBConfig {
@@ -8,7 +8,11 @@ new MarketDBConfig {
     new KestrelLoader(marketDB, KestrelConfig(Seq("localhost:22133"), "trades", 30))
   }
 
-  services = Seq(kestrelLoaderService)
+  val zmqLoadedService = (marketDB: MarketDB) => {
+    new ZMQLoader(marketDB, "tcp://*:30000")
+  }
+
+  services = Seq(kestrelLoaderService, zmqLoadedService)
 
   admin.statsNodes = new StatsConfig {
     reporters = new JsonStatsLoggerConfig {

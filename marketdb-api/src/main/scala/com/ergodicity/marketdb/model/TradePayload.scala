@@ -3,6 +3,7 @@ package com.ergodicity.marketdb.model
 import sbinary._
 import Operations._
 import org.joda.time.DateTime
+import com.ergodicity.zeromq.{Deserializer, Frame, Serializer}
 
 case class Market(value: String)
 
@@ -15,7 +16,7 @@ case class TradePayload(market: Market, code: Code, contract: Contract,
 
 object TradeProtocol extends DefaultProtocol {
 
-  implicit object DateTimeFormat extends Format[DateTime] {
+  implicit object DateTimeBinaryFormat extends Format[DateTime] {
     def reads(in: Input) = new DateTime(read[Long](in))
 
     def writes(out: Output, dateTime: DateTime) {
@@ -68,6 +69,17 @@ object TradeProtocol extends DefaultProtocol {
       write[DateTime](out, payload.time)
       write[Long](out, payload.tradeId)
       write[Boolean](out, payload.nosystem)
+    }
+  }
+  
+  implicit object TradePayloadSerializer extends Serializer[List[TradePayload]] {
+    def apply(obj: List[TradePayload]) = Seq(Frame(toByteArray(obj)))
+  }
+
+  implicit object TradePayloadDeserializer extends Deserializer[List[TradePayload]] {
+    def apply(frames: Seq[Frame]) = frames match {
+      case Seq(x) => fromByteArray[List[TradePayload]](x.payload.toArray)
+      case _ => throw new IllegalStateException("Illegal frames sequence")
     }
   }
 
