@@ -4,7 +4,6 @@ import sbinary.Operations._
 import sbinary.{Output, Input, Format, DefaultProtocol}
 import org.joda.time.{DateTime, Interval}
 import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
-import com.ergodicity.zeromq.{Deserializer, Frame, Serializer}
 
 object MarketStreamProtocol extends DefaultProtocol {
 
@@ -53,17 +52,6 @@ object MarketStreamProtocol extends DefaultProtocol {
     }
   }
 
-  implicit object StreamControlMessageSerializer extends Serializer[StreamControlMessage] {
-    def apply(msg: StreamControlMessage) = Seq(Frame(toByteArray(msg)))
-  }
-
-  implicit object StreamControlMessageDeserializer extends Deserializer[StreamControlMessage] {
-    def apply(frames: Seq[Frame]) = frames.toList match {
-        case x :: Nil => fromByteArray[StreamControlMessage](x.payload.toArray)
-        case seq => throw new IllegalArgumentException("Illegal frames sequence: "+seq)
-    }
-  }
-
   implicit object StreamPayloadMessageFormat extends Format[StreamPayloadMessage] {
     def reads(in: Input) = read[Byte](in) match {
       case 0 => Trades(read[TradePayload](in))
@@ -83,18 +71,6 @@ object MarketStreamProtocol extends DefaultProtocol {
         write[Byte](out, 2)
     }
   }
-
-  implicit object StreamPayloadMessageSerializer extends Serializer[StreamPayloadMessage] {
-    def apply(msg: StreamPayloadMessage) = Seq(Frame(toByteArray(msg)))
-  }
-
-  implicit object StreamPayloadMessageDeserializer extends Deserializer[StreamPayloadMessage] {
-    def apply(frames: Seq[Frame]) = frames.toList match {
-      case x :: Nil => fromByteArray[StreamPayloadMessage](x.payload.toArray)
-      case seq => throw new IllegalArgumentException("Illegal frames sequence: "+seq)
-    }
-  }
-
 }
 
 case class StreamIdentifier(id: String)

@@ -2,24 +2,16 @@ package com.ergodicity.marketdb.loader
 
 import org.slf4j.LoggerFactory
 import org.scalatest.Spec
-import com.ergodicity.marketdb.model.TradePayload
 import com.twitter.finagle.kestrel.Client
 import org.mockito.Mockito._
 import org.mockito.Matchers._
 import util.{BatchSettings, Iteratees}
-import sbinary._
-import Operations._
 import com.ergodicity.marketdb.model.TradeProtocol._
 
 class TradeDataToKestrelTest extends Spec {
   val log = LoggerFactory.getLogger(classOf[TradeDataIterateeTest])
 
   val Queue = "Queue"
-
-  implicit lazy val TradePayloadSerializer = {
-    payload: List[TradePayload] =>
-      toByteArray(payload)
-  }
 
   val RtsTrades = () => {
     RtsTradeHistory(InputStreamRef(this.getClass.getResourceAsStream("/data/FT120201.zip")))

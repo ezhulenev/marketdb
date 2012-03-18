@@ -67,9 +67,13 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
   val control = Client(Rep, options = Bind(controlEndpoint) :: Nil)
   val controlHandle = control.read[StreamControlMessage]
   controlHandle.messages foreach {
-    case OpenStream(market, code, interval) => control.send[StreamControlMessage](openStream(market, code, interval))
-    case CloseStream(stream) => control.send[StreamControlMessage](closeStream(stream))
-    case msg => log.error("Unknown StreamControllMessage: " + msg)
+    msg =>
+      msg.payload match {
+        case OpenStream(market, code, interval) => control.send[StreamControlMessage](openStream(market, code, interval))
+        case CloseStream(stream) => control.send[StreamControlMessage](closeStream(stream))
+        case unknown => log.error("Unknown StreamControllMessage: " + unknown)
+      }
+      msg.ack()
   }
 
   private def openStream(market: Market, code: Code, interval: Interval) = {

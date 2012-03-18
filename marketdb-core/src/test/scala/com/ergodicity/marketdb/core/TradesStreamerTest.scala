@@ -56,7 +56,7 @@ class TradesStreamerTest {
 
     // Open Stream
     val open: StreamControlMessage = OpenStream(market, code, interval)
-    val openReply = client ? open
+    val openReply = client.ask[StreamControlMessage, StreamControlMessage](open)
 
     log.info("Open reply: " + openReply)
     assert(openReply match {
@@ -66,7 +66,7 @@ class TradesStreamerTest {
 
     // Close stream
     val close: StreamControlMessage = CloseStream(openReply.asInstanceOf[StreamOpened].stream)
-    val closeReply = client ? close
+    val closeReply = client.ask[StreamControlMessage, StreamControlMessage](close)
     log.info("Close reply: " + closeReply)
     assert(closeReply match {
       case StreamClosed() => true
@@ -121,7 +121,7 @@ class TradesStreamerTest {
 
     // Open Stream
     val open: StreamControlMessage = OpenStream(market, code, interval)
-    val opened = (client ? open).asInstanceOf[StreamOpened]
+    val opened = (client.ask[StreamControlMessage, StreamControlMessage](open)).asInstanceOf[StreamOpened]
 
     val patient = new Patient(Heartbeat, Identifier(opened.stream.id))
     tradesStreamer.heartbeat.ping(UUID.randomUUID())
@@ -130,9 +130,9 @@ class TradesStreamerTest {
     var tradesNbr = 0
     val handle = sub.read[StreamPayloadMessage]
     handle.messages foreach {
-      case Trades(trade) => tradesNbr += 1;
-      case Completed() => log.info("Completed"); latch.countDown()
-      case _ =>
+      case ReadMessage(Trades(trade), ack) => tradesNbr += 1; ack()
+      case ReadMessage(Completed(), ack) => log.info("Completed"); latch.countDown(); ack()
+      case ReadMessage(_, ack) => ack()
     }
 
     assert(latch.await(5, TimeUnit.SECONDS))
@@ -164,15 +164,15 @@ class TradesStreamerTest {
 
     // Open Stream
     val open: StreamControlMessage = OpenStream(market, code, interval)
-    val opened = (client ? open).asInstanceOf[StreamOpened]
+    val opened = (client.ask[StreamControlMessage, StreamControlMessage](open)).asInstanceOf[StreamOpened]
 
     val latch = new CountDownLatch(1)
     var tradesNbr = 0
     val handle = sub.read[StreamPayloadMessage]
     handle.messages foreach {
-      case Trades(trade) => tradesNbr += 1;
-      case Broken(e) => log.info("Broken: " + e); latch.countDown()
-      case _ =>
+      case ReadMessage(Trades(trade), ack) => tradesNbr += 1; ack()
+      case ReadMessage(Broken(e), ack) => log.info("Broken: " + e); latch.countDown(); ack()
+      case ReadMessage(_, ack) => ack()
     }
 
     val patient = new Patient(Heartbeat, Identifier(opened.stream.id))

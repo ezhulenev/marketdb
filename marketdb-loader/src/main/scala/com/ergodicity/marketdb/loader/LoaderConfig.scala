@@ -14,6 +14,7 @@ import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.kestrel.Client
 import com.ergodicity.zeromq.{Connect, Client => ZMQClient}
 import org.zeromq.ZMQ
+import com.ergodicity.marketdb.model.TradeProtocol._
 
 abstract class LoaderConfig extends ServerConfig[Loader[_]] {
   val Format = DateTimeFormat.forPattern("yyyyMMdd")
@@ -44,7 +45,6 @@ abstract class ZMQLoaderConfig(endpoint: String, batchSettings: BatchSettings) e
   implicit def implicitBatchSettings = batchSettings
   
   import com.ergodicity.zeromq.SocketType.Pub
-  import com.ergodicity.marketdb.model.TradeProtocol._
 
   implicit val context = ZMQ.context(1)
   val client = ZMQClient(Pub, options = Connect(endpoint) :: Nil)
@@ -56,14 +56,6 @@ abstract class KestrelLoaderConfig(kestrel: KestrelSettings, batchSettings: Batc
   assertKestrelRunning(kestrel)
 
   implicit def implicitBatchSettings = batchSettings
-
-  implicit lazy val TradePayloadSerializer = {
-    payload: List[TradePayload] =>
-      import sbinary._
-      import Operations._
-      import com.ergodicity.marketdb.model.TradeProtocol._
-      toByteArray(payload)
-  }
 
   val client = Client(ClientBuilder()
     .codec(Kestrel())

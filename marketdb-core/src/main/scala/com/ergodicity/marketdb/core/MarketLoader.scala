@@ -15,7 +15,6 @@ import com.ergodicity.zeromq.{Bind, Subscribe}
 import org.zeromq.ZMQ
 import java.util.concurrent.{Executors, TimeUnit}
 import com.twitter.util.{FuturePool, JavaTimer}
-import org.zeromq.ZMQ.Context
 
 
 trait MarketLoader extends MarketService
@@ -129,7 +128,7 @@ class ZMQLoader(val marketDb: MarketDB, endpoint: String) extends MarketLoader {
   private val Interrupt = new AtomicBoolean(false)
 
   val client = ZMQClient(Sub, options = Bind(endpoint) :: Subscribe.all :: Nil)
-  /*val readHandle: ZMQReadHandle[List[TradePayload]] = client.read[List[TradePayload]]*/
+  //val readHandle: ZMQReadHandle[List[TradePayload]] = client.read[List[TradePayload]]
 
   val first = new AtomicBoolean(true)
   val Formatter = DateTimeFormat.forPattern("YYYY MM dd HH:mm:ss:SSS")
@@ -184,7 +183,10 @@ class ZMQLoader(val marketDb: MarketDB, endpoint: String) extends MarketLoader {
     readHandle.error foreach { e =>
       if (!MarketDB.stopped.get) System.err.println("zomg! got an error " + e)
     }
-    readHandle.messages foreach handleTrades*/
+    readHandle.messages foreach {msg =>
+      handleTrades(msg.payload)
+      msg.ack()
+    }*/
 
     pool {
       while (!Interrupt.get()) {
@@ -196,7 +198,7 @@ class ZMQLoader(val marketDb: MarketDB, endpoint: String) extends MarketLoader {
   def shutdown() {
     log.info("Shutdown marketDB ZMQ Loader")
     Interrupt.set(true)
-    /*readHandle.close()*/
+    //readHandle.close()
     client.close()
     log.info("marketDB ZMQ Loader stopped")
   }
