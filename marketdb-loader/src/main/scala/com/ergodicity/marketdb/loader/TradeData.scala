@@ -8,7 +8,6 @@ import org.joda.time.format.DateTimeFormat
 import java.util.zip.{ZipEntry, ZipInputStream}
 import java.io.{Reader, InputStreamReader, InputStream, BufferedReader}
 import com.ergodicity.marketdb.model.{Contract, Code, Market, TradePayload}
-import com.twitter.ostrich.stats.Stats
 
 
 sealed trait TradeData[R <: DataRef] {

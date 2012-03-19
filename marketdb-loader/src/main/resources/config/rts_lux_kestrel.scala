@@ -1,10 +1,5 @@
 import com.ergodicity.marketdb.loader.util.BatchSettings
-import com.ergodicity.marketdb.loader.util.Iteratees._
-import com.ergodicity.marketdb.loader.{KestrelLoaderConfig, KestrelSettings, RtsTradeLoader, LoaderConfig}
-import com.ergodicity.marketdb.model.TradePayload
-import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.kestrel.Client
-import com.twitter.finagle.kestrel.protocol.Kestrel
+import com.ergodicity.marketdb.loader.{KestrelLoaderConfig, KestrelSettings, RtsTradeLoader}
 import java.io.File
 
 new KestrelLoaderConfig(KestrelSettings("localhost", 22133, "trades", 10), BatchSettings(100, Some(1000))) {

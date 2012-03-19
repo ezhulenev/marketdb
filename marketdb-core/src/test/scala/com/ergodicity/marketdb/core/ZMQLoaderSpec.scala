@@ -39,7 +39,7 @@ class ZMQLoaderSpec extends Spec {
       client.send(payloads.toList)
 
       // Let all trades to be processed
-      Thread.sleep(100)
+      Thread.sleep(1000)
 
       verify(marketDb, times(TradesCount)).addTrade(any())
 
