@@ -6,13 +6,15 @@ import scalaz.{Input, IterV}
 import org.joda.time.Interval
 import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
 import com.twitter.conversions.time._
-import org.hbase.async.Scanner
 import collection.JavaConversions._
 import sbinary.Operations._
 import sbinary.Reads
+import com.twitter.util.{Promise, Future}
+import java.util.ArrayList
+import org.hbase.async.{KeyValue, Scanner}
 
 class ScannerW[T](underlying: Scanner)(implicit reads: Reads[T]) {
-  
+
   var fetched: Option[Iterator[T]] = None
 
   private def fetchFromUnderlyingScanner: Option[Iterator[T]] = {
@@ -47,6 +49,14 @@ class ScannerW[T](underlying: Scanner)(implicit reads: Reads[T]) {
   def close() {
     underlying.close()
   }
+}
+
+case class IterationProgress(scans: Long, records: Long)
+
+trait MarketIteration[E, A] {
+  def progress: IterationProgress
+  def result: Future[A]
+  def abort()
 }
 
 sealed trait MarketTimeSeries[E] {
