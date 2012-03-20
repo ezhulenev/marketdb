@@ -86,6 +86,8 @@ object ScannerMock {
         }
       }
     })
+
+    when(scanner.close()).thenReturn(Deferred.fromResult[AnyRef](new AnyRef()))
     scanner
   }
 }

@@ -9,11 +9,12 @@ import com.ergodicity.marketdb.{ByteArray, ScannerMock}
 import org.junit.runner.RunWith
 import org.powermock.modules.junit4.PowerMockRunner
 import org.powermock.core.classloader.annotations.{PrepareForTest, PowerMockIgnore}
-import org.hbase.async.Scanner
 import org.mockito.Mockito._
 import org.mockito.Matchers._
 import org.scala_tools.time.Implicits._
 import com.twitter.util.Future
+import com.ergodicity.marketdb.model.TradeProtocol._
+import org.hbase.async.Scanner
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -34,22 +35,54 @@ class MarketIterateeTest {
   implicit val codeId = (_: Code) => ByteArray(1)
 
   @Test
-  def testIterateOverScanner_WithCounter() {
-    val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
+  def testOpenScannerFailed() {
+    implicit val marketDb = mock(classOf[MarketDB])
+    when(marketDb.scan(any(), any(), any())).thenThrow(new IllegalStateException)
+
+    val trades = TradesTimeSeries(market, code, interval)
+    import org.scalatest.Assertions._
+    intercept[IllegalStateException] {
+      trades.enumerate(counter[TradePayload])
+    }
+  }
+
+  @Test
+  def testIterateOverScanner() {
+    val Count = 100
+    val payloads = for (i <- 1 to Count) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
     val scanner = ScannerMock(payloads)
 
     implicit val marketDb = mock(classOf[MarketDB])
-
     when(marketDb.scan(any(), any(), any())).thenReturn(Future(scanner))
 
-    import com.ergodicity.marketdb.model.TradeProtocol._
     val trades = TradesTimeSeries(market, code, interval)
-    log.info("Trades TS: "+trades)
     val iterv = trades.enumerate(counter[TradePayload])
-    log.info("GOT IterV: "+iterv);
-    val count = iterv.run
+    val count = iterv.map(_.run)()
     log.info("Count: "+count)
-    assert(count == 100)
+    assert(count == Count)
+
+    verify(scanner).close()
+  }
+  
+  @Test
+  def testIterationIsBroken() {
+    val Count = 100
+    val payloads = for (i <- 1 to Count) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
+    val err = new IllegalStateException
+    val scanner = ScannerMock(payloads, failOnBatch = Some(3, err))
+
+    implicit val marketDb = mock(classOf[MarketDB])
+    when(marketDb.scan(any(), any(), any())).thenReturn(Future(scanner))
+
+    val trades = TradesTimeSeries(market, code, interval)
+    trades.enumerate(counter[TradePayload]).map(_.run) onSuccess {_ =>
+      assert(false)
+    } onFailure {err =>
+      log.info("Error: "+err )
+      assert(true)
+    }
+
+     verify(scanner).close()
   }
 
 }

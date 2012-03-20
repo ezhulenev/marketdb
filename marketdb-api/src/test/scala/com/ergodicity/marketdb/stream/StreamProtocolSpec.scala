@@ -19,14 +19,14 @@ class StreamProtocolSpec extends Spec {
     val code = Code("RIH")
     val contract = Contract("RIM 3.12")
 
-    it("should serialize Trades") {
-      val mess = Trades(TradePayload(market, code, contract, BigDecimal(1), 1, new DateTime, 1, false))
+    it("should serialize Payload") {
+      val mess = Payload(TradePayload(market, code, contract, BigDecimal(1), 1, new DateTime, 1, false))
 
       val bytes = toByteArray[StreamPayloadMessage](mess)
       val fromBytes = fromByteArray[StreamPayloadMessage](bytes)
 
       assert(fromBytes match {
-        case Trades(trade) => true
+        case Payload(trade) => true
         case _ => false
       })
     }
@@ -42,13 +42,13 @@ class StreamProtocolSpec extends Spec {
       })
     }
     it ("should serialize Completed") {
-      val mess = Completed()
+      val mess = Completed(true)
 
       val bytes = toByteArray[StreamPayloadMessage](mess)
       val fromBytes = fromByteArray[StreamPayloadMessage](bytes)
 
       assert(fromBytes match {
-        case Completed() => true
+        case Completed(true) => true
         case _ => false
       })
     }

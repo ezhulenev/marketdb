@@ -73,9 +73,6 @@ class TradesStreamerTest {
       case _ => false
     })
 
-    // Verify
-    verify(marketDb, only()).scan(market, code, interval)
-
     // Close all
     tradesStreamer.shutdown()
     client.close()
@@ -130,13 +127,13 @@ class TradesStreamerTest {
     var tradesNbr = 0
     val handle = sub.read[StreamPayloadMessage]
     handle.messages foreach {
-      case ReadMessage(Trades(trade), ack) => tradesNbr += 1; ack()
-      case ReadMessage(Completed(), ack) => log.info("Completed"); latch.countDown(); ack()
+      case ReadMessage(Payload(trade), ack) => tradesNbr += 1; ack()
+      case ReadMessage(Completed(interrupted), ack) if !interrupted => log.info("Completed"); latch.countDown(); ack()
       case ReadMessage(_, ack) => ack()
     }
 
     assert(latch.await(5, TimeUnit.SECONDS))
-    assert(tradesNbr == TradesCount)
+    assert(tradesNbr == TradesCount, "Expected = "+TradesCount+" actual = "+tradesNbr)
 
     // Verify
     verify(marketDb, only()).scan(market, code, interval)
@@ -170,7 +167,7 @@ class TradesStreamerTest {
     var tradesNbr = 0
     val handle = sub.read[StreamPayloadMessage]
     handle.messages foreach {
-      case ReadMessage(Trades(trade), ack) => tradesNbr += 1; ack()
+      case ReadMessage(Payload(trade), ack) => tradesNbr += 1; ack()
       case ReadMessage(Broken(e), ack) => log.info("Broken: " + e); latch.countDown(); ack()
       case ReadMessage(_, ack) => ack()
     }
@@ -179,7 +176,7 @@ class TradesStreamerTest {
     tradesStreamer.heartbeat.ping(UUID.randomUUID())
 
     assert(latch.await(5, TimeUnit.SECONDS))
-    assert(tradesNbr == TradesExpected)
+    assert(tradesNbr == TradesExpected, "Expected: " + TradesExpected + "; actually got: " + tradesNbr)
 
     // Verify
     verify(marketDb, only()).scan(market, code, interval)

@@ -11,8 +11,6 @@ import com.twitter.util.Future
 import org.scala_tools.time.Implicits._
 import collection.JavaConversions
 import scala.Predef._
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
   override val log = LoggerFactory.getLogger(classOf[MarketDBIntegrationTest])
@@ -71,6 +69,33 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
       assert(scanner.nextRows().joinUninterruptibly() == null)
     }
 
+    it("should persist new trades iterate over them with MarketIteratee") {
+      val time1 = new DateTime(1970, 01, 05, 1, 0, 0, 0)
+      val time2 = new DateTime(1970, 01, 05, 1, 0, 1, 0)
+
+      val payload1 = TradePayload(market, code, contract, BigDecimal("111"), 1, time1, 111l, true)
+      val payload2 = TradePayload(market, code, contract, BigDecimal("112"), 1, time2, 112l, true)
+
+      val f1 = marketDB.addTrade(payload1)
+      val f2 = marketDB.addTrade(payload2)
+
+      // Wait for trades persisted
+      Future.join(List(f1, f2))()
+
+      // -- Verify two rows for 1970 Jan 5
+      val interval = new DateTime(1970, 01, 05, 0, 0, 0, 0) to new DateTime(1970, 01, 05, 23, 0, 0, 0)
+
+      import MarketIteratee._
+      import TradeProtocol._
+      val tradeSeries = TradesTimeSeries(market, code, interval)(marketDB)
+      val cnt = counter[TradePayload]
+
+      val iter = tradeSeries.enumerate(cnt).map(_.run)
+      val count = iter()
+
+      assert(count == 2)
+    }
+
     it("should return null if no trades exists") {
       // -- Verify two rows for 1970 Feb 1
       val interval = new DateTime(1970, 02, 01, 0, 0, 0, 0) to new DateTime(1970, 02, 01, 23, 0, 0, 0)
@@ -81,54 +106,5 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
 
       assert(rows == null)
     }
-
-    it("should persist new trades and read them with stream") {
-      readWithTradeScanner(marketDB) {_.open()}
-    }
-
-    it("should persist new trades and read them with buffered stream (size=10)") {
-      readWithTradeScanner(marketDB) {_.open().buffered(10)}
-    }
-
-    it("should persist new trades and read them with buffered stream (size=100)") {
-      readWithTradeScanner(marketDB) {_.open().buffered(100)}
-    }
-  }
-
-  private def readWithTradeScanner(marketDB: MarketDB)(f: TradesScanner => TradesHandle) {
-    val payloads = for (m <- 0 to 59;
-                        s <- 0 to 59)
-    yield TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(1971, 01, 01, 1, m, s, 0), s + m * 60, true)
-
-    log.info("Payloads size: " + payloads.size)
-
-    val fs = payloads.map(marketDB.addTrade(_))
-
-    // Wait for trades persisted
-    Future.join(fs)()
-
-    val interval = new DateTime(1971, 01, 01, 0, 0, 0, 0) to new DateTime(1971, 01, 01, 23, 0, 0, 0)
-    val scanner = marketDB.scan(market, code, interval)()
-
-    // -- Read trades with trades scanner
-    val tradesScanner = TradesScanner(scanner)
-    val handle = f(tradesScanner)
-
-    val exhaustedLatch = new java.util.concurrent.CountDownLatch(1)
-    handle.error foreach {
-      case TradesScanCompleted => exhaustedLatch.countDown()
-    }
-
-    val counter = new AtomicInteger()
-    handle.trades foreach {
-      t =>
-        counter.incrementAndGet()
-        t.ack()
-    }
-
-    exhaustedLatch.await(10, TimeUnit.SECONDS)
-
-    log.info("Counter: " + counter.get())
-    assert(scanner.nextRows().joinUninterruptibly() == null)
   }
 }

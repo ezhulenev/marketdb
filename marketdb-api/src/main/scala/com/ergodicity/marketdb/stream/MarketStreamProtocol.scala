@@ -1,8 +1,8 @@
 package com.ergodicity.marketdb.stream
 
 import sbinary.Operations._
-import sbinary.{Output, Input, Format, DefaultProtocol}
 import org.joda.time.{DateTime, Interval}
+import sbinary._
 import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
 
 object MarketStreamProtocol extends DefaultProtocol {
@@ -52,23 +52,25 @@ object MarketStreamProtocol extends DefaultProtocol {
     }
   }
 
-  implicit object StreamPayloadMessageFormat extends Format[StreamPayloadMessage] {
+  implicit object StreamPayloadMessageFormat extends  Format[StreamPayloadMessage] {
+
     def reads(in: Input) = read[Byte](in) match {
-      case 0 => Trades(read[TradePayload](in))
+      case 0 => Payload(read[TradePayload](in))
       case 1 => Broken(read[String](in))
-      case 2 => Completed()
+      case 2 => Completed(read[Boolean](in))
       case _ => throw new RuntimeException("Unsupported strem message")
     }
 
     def writes(out: Output, value: StreamPayloadMessage) = value match {
-      case Trades(trade) =>
+      case Payload(data) =>
         write[Byte](out, 0)
-        write[TradePayload](out, trade)
+        write[TradePayload](out, data)
       case Broken(err) =>
         write[Byte](out, 1)
         write[String](out, err)
-      case Completed() =>
+      case Completed(interrupted) =>
         write[Byte](out, 2)
+        write[Boolean](out, interrupted)
     }
   }
 }
@@ -82,8 +84,9 @@ case class StreamOpened(stream: StreamIdentifier) extends StreamControlMessage
 case class CloseStream(stream: StreamIdentifier) extends StreamControlMessage
 case class StreamClosed() extends StreamControlMessage
 
+
 sealed abstract class StreamPayloadMessage
 
-case class Trades(trade: TradePayload) extends StreamPayloadMessage
+case class Payload(data: TradePayload) extends StreamPayloadMessage
 case class Broken(err: String) extends StreamPayloadMessage
-case class Completed() extends StreamPayloadMessage
+case class Completed(interrupted: Boolean) extends StreamPayloadMessage

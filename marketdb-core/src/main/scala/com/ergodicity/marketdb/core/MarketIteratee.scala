@@ -5,95 +5,117 @@ import IterV._
 import scalaz.{Input, IterV}
 import org.joda.time.Interval
 import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
-import com.twitter.conversions.time._
 import collection.JavaConversions._
 import sbinary.Operations._
-import sbinary.Reads
 import com.twitter.util.{Promise, Future}
 import java.util.ArrayList
 import org.hbase.async.{KeyValue, Scanner}
-
-class ScannerW[T](underlying: Scanner)(implicit reads: Reads[T]) {
-
-  var fetched: Option[Iterator[T]] = None
-
-  private def fetchFromUnderlyingScanner: Option[Iterator[T]] = {
-    val rows = underlying.nextRows().joinUninterruptibly(MarketIteratee.Timeout.inMillis)
-    if (rows != null) {
-      val data = asScalaIterator(rows.iterator()) flatMap {
-        row =>
-          asScalaIterator(row.iterator())
-      } map {
-        kv =>
-          fromByteArray[T](kv.value())
-      }
-      Some(data)
-    } else {
-      None
-    }
-  }
-
-  def readNext(): Option[T] = {
-    if (fetched.isEmpty) {
-      fetched = fetchFromUnderlyingScanner
-    }
-    fetched match {
-      case None => None
-      case Some(iter) => if (iter.hasNext) Some(iter.next()) else {
-        fetched = None
-        readNext()
-      }
-    }
-  }
-
-  def close() {
-    underlying.close()
-  }
-}
-
-case class IterationProgress(scans: Long, records: Long)
-
-trait MarketIteration[E, A] {
-  def progress: IterationProgress
-  def result: Future[A]
-  def abort()
-}
+import sbinary.{Writes, Reads}
+import com.twitter.ostrich.stats.Stats
+import java.util.concurrent.atomic.AtomicBoolean
 
 sealed trait MarketTimeSeries[E] {
-  def openScanner[E](implicit reads: Reads[E]): ScannerW[E]
+  import com.ergodicity.marketdb.AsyncHBase._
+  def openScanner: Future[Scanner]
 
-  def enumScanner[E, A](scanner: ScannerW[E], it: IterV[E, A]): IterV[E, A] = {
-    def loop: IterV[E, A] => IterV[E, A] = {
-      case i@Done(_, _) => i
-      case i@Cont(k) =>
-        val s  = scanner.readNext()
-        if (s.isEmpty) i else loop(k(El(s.asInstanceOf[E])))
+  def scan[A](scanner: Scanner, it: IterV[E, A])(implicit reads: Reads[E]): Future[IterV[E, A]] = {
+
+    def nextValuesFromUnderlyingScanner: Future[Option[Iterator[E]]] = {
+      val promise = new Promise[Option[Iterator[E]]]
+      val defered = scanner.nextRows()
+
+      val callback: ArrayList[ArrayList[KeyValue]] => Unit = rows => {
+        if (rows != null) {
+          val trades = asScalaIterator(rows.iterator()) flatMap {row =>
+              asScalaIterator(row.iterator())} map {kv =>
+              fromByteArray[E](kv.value())}
+          promise.setValue(Some(trades))
+        } else {
+          promise.setValue(None)
+        }
+      }
+      val errback: Throwable => Unit = e => promise.setException(e)
+      defered addCallback callback
+      defered addErrback errback
+
+      promise
     }
-    loop(it)
+
+    def loop(data: Iterator[E], iterv: IterV[E, A]): Future[IterV[E, A]] = {
+      val nextValues = if (data.hasNext) Future(Some(data)) else nextValuesFromUnderlyingScanner onFailure {err =>
+        scanner.close()
+      }
+
+      iterv match {
+        case i@Done(_, _) => scanner.close(); Future(i)
+        case i@Cont(k) =>
+          nextValues.map {
+            case None => Future(k(EOF[E])) //Future(i)
+            case Some(iterator) =>
+              val next = iterator.next()
+              loop(iterator, k(El(next)))
+          }.flatten
+      }
+    }
+
+    loop(Iterator.empty, it)
   }
 
-  def closeScanner(scanner: ScannerW[E])(implicit reads: Reads[E]) = scanner.close()
+    def closeScanner(scanner: Scanner) = {
+      val promise = new Promise[Unit]
+      val deferred = scanner.close()
+      deferred.addCallback((res: AnyRef) => promise.setValue(()))
+      deferred.addErrback((err: Throwable) => promise.setException(err))
+      promise
+    }
 
-  def bracket[A, B, C](init: A, fin: A => B, body: A => C): C = {
-    val a = init
-    val c = body(a)
-    fin(a)
-    c
-  }
+    def bracket[A, B, C](init: Future[A], fin: A => Future[B], body: A => Future[C]): Future[C] =
+      for {
+        a <- init
+        c <- body(a)
+        _ <- fin(a)
+      } yield c
 
-  def enumerate[A](i: IterV[E, A])(implicit reads: Reads[E]) =
-    bracket(openScanner,
-      closeScanner(_: ScannerW[E]),
-      enumScanner(_: ScannerW[E], i))
+    def enumerate[A](i: IterV[E, A])(implicit reads: Reads[E]): Future[IterV[E, A]] =
+      bracket(openScanner,
+        closeScanner(_: Scanner),
+        scan(_: Scanner, i))
 }
 
-case class TradesTimeSeries(market: Market, code: Code, interval: Interval)(implicit marketDb: MarketDB) extends MarketTimeSeries[TradePayload] {
-  def openScanner[E](implicit reads: Reads[E]): ScannerW[E] =
-    new ScannerW[E](marketDb.scan(market, code, interval).apply(MarketIteratee.Timeout))
+
+case class TradesTimeSeries(market: Market, code: Code, interval: Interval)
+                           (implicit marketDb: MarketDB) extends MarketTimeSeries[TradePayload] {
+  def openScanner = marketDb.scan(market, code, interval)
 }
 
 object MarketIteratee {
-  val Timeout = 5.seconds
+  import com.ergodicity.zeromq.{Client => ZMQClient}
+
+  def zmqStreamer[E, A](client: ZMQClient, envelop: E=>A, interrupt: AtomicBoolean = new AtomicBoolean(false))
+                     (implicit writes: Writes[A]): IterV[E, Int] = {
+
+    def step(is: Int, e: E)(s: Input[E]): IterV[E, Int] = {
+      s(el = e2 => {
+        Stats.incr("trades_streamed_zmq", 1);
+        client.send(envelop(e2))
+        if (interrupt.get) Done(is + 1, EOF[E]) else Cont(step(is + 1, e2))
+      },
+        empty = Cont(step(is, e)),
+        eof = Done(is, EOF[E]))
+    }
+
+    def first(s: Input[E]): IterV[E, Int] = {
+      s(el = e1 => {
+        Stats.incr("trades_streamed_zmq", 1);
+        client.send(envelop(e1))
+        Cont(step(1, e1))
+      },
+        empty = Cont(first),
+        eof = Done(0, EOF[E]))
+    }
+
+    Cont(first)
+  }
 
   def counter[E]: IterV[E, Int] = {
     def step(is: Int, e: E)(s: Input[E]): IterV[E, Int] = {

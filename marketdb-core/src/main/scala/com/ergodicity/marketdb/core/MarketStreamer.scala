@@ -7,12 +7,15 @@ import com.ergodicity.zeromq.SocketType._
 import java.util.UUID
 import com.ergodicity.marketdb.stream._
 import org.joda.time.Interval
-import com.ergodicity.marketdb.model.{Market, Code}
 import concurrent.stm._
 import com.twitter.conversions.time._
 import com.ergodicity.zeromq._
-import com.twitter.concurrent.{Broker, Offer}
 import org.zeromq.{ZMQForwarder, ZMQ}
+import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
+import MarketIteratee._
+import com.ergodicity.marketdb.model.TradeProtocol._
+import java.util.concurrent.atomic.AtomicBoolean
+import com.twitter.concurrent.{Broker, Offer}
 
 trait MarketStreamer extends MarketService
 
@@ -41,7 +44,7 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
 
   import MarketStreamProtocol._
 
-  private val tradeScanners = Ref(Map[String, (TradesScanner, Option[Offer[Unit]])]())
+  private val tradeTimeSeries = Ref(Map[String, Offer[Unit]]())
 
   // Start beating
   val heartbeat = new Heartbeat(heartbeatRef, duration = 3.second, lossLimit = 3)
@@ -81,47 +84,46 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
 
     val id = UUID.randomUUID().toString
     val streamIdentifier = StreamIdentifier(id)
-    val scanner = marketDb.scan(market, code, interval)()
-    val tradesScanner = TradesScanner(scanner)
-
+    
+    val timeSeries = TradesTimeSeries(market, code, interval)(marketDb)
+    
     def startStreaming() {
       log.info("Start trades streaming: "+id)
       val pub = Client(Pub, options = Connect(InputEndpoint) :: Nil)
-      val handle = tradesScanner.open()
+
+      val interrupt = new AtomicBoolean(false)
+      val i = zmqStreamer[TradePayload, StreamPayloadMessage](pub, trade => Payload(trade), interrupt)
 
       val stop = new Broker[Unit]
       Offer.select(
         stop.recv {_ =>
           log.info("Stop streaming: "+id)
-          handle.close()
-          pub.close()
+          interrupt.set(true)
         }
       )
       val stopOffer = stop.send(())
 
       atomic {implicit txt =>
-        tradeScanners.transform(_ + (id ->(tradesScanner, Some(stopOffer))))
+        tradeTimeSeries.transform(_ + (id ->stopOffer))
       }
 
-      handle.trades foreach {r =>
-        pub.send[StreamPayloadMessage](Trades(r.payload))
-        r.ack()
-      }
-
-      handle.error foreach {
-        case TradesScanCompleted =>
-          log.info("Trades scan completed")
-          pub.send[StreamPayloadMessage](Completed())
-          closeStream(streamIdentifier)
-        case err =>
-          log.error("Got error: "+err)
+      timeSeries.enumerate(i) onSuccess {
+        cnt =>
+          log.info("Sent " + cnt + " trades; Interrupted = "+interrupt.get)
+          pub.send[StreamPayloadMessage](Completed(interrupt.get))
+          atomic {implicit txt =>
+            tradeTimeSeries.transform(_ - id)
+          }
+          pub.close()
+      } onFailure {
+        err =>
+          log.error("Streaming failed for client: " + id + "; Error: " + err)
           pub.send[StreamPayloadMessage](Broken(err.getMessage))
-          closeStream(streamIdentifier)
+          atomic {implicit txt =>
+            tradeTimeSeries.transform(_ - id)
+          }
+          pub.close()
       }
-    }
-
-    atomic {implicit txn =>
-      tradeScanners.transform(_ + (id -> (tradesScanner, None)))
     }
 
     heartbeat.track(Identifier(id)) foreach {
@@ -139,24 +141,20 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
 
   private def closeStream(stream: StreamIdentifier) = {
     log.info("Close trades stream: "+stream)
-    val id = stream.id
-    tradeScanners.single() get(id) foreach {_._2 foreach {_()}}
-    atomic {implicit txt =>
-      tradeScanners.transform(_ - id)
-    }
+    tradeTimeSeries.single().get(stream.id) map {_()}
     StreamClosed()
   }
 
   def shutdown() {
     log.info("Shutdown TradesStreamer")
-    // Close each opened scanner
-    tradeScanners.single().values.foreach {_._2 foreach {_()}}
+    // Close all alive streams
+    tradeTimeSeries.single() foreach {_._2()}
     // Shutdown heartbeat
     heartbeat.stop()
     // Shutdown forwarder
+    forwarding.cancel()
     input.close()
     output.close();
-    forwarding.cancel()
     // Shutdown control
     controlHandle.close()
     control.close()
