@@ -19,7 +19,9 @@ object MarketDBBuild extends Build {
   lazy val marketdbApi = Project(
     id = "marketdb-api",
     base = file("marketdb-api"),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.api)
+    settings = Project.defaultSettings ++ repositoriesSetting ++
+      Seq(libraryDependencies ++= Dependencies.api) ++
+      Seq((unmanagedBase <<= baseDirectory { base => base / ".." / "lib" }))
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
@@ -27,7 +29,9 @@ object MarketDBBuild extends Build {
     id = "marketdb-core",
     base = file("marketdb-core"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.core)
+    settings = Project.defaultSettings ++ repositoriesSetting ++
+      Seq(libraryDependencies ++= Dependencies.core) ++
+      Seq((unmanagedBase <<= baseDirectory { base => base / ".." / "lib" }))
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
@@ -35,7 +39,9 @@ object MarketDBBuild extends Build {
     id = "marketdb-loader",
     base = file("marketdb-loader"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ Seq(libraryDependencies ++= Dependencies.loader)
+    settings = Project.defaultSettings ++ repositoriesSetting ++
+      Seq(libraryDependencies ++= Dependencies.loader) ++
+      Seq((unmanagedBase <<= baseDirectory { base => base / ".." / "lib" }))
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
