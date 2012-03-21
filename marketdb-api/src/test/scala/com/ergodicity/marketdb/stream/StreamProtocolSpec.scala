@@ -22,8 +22,8 @@ class StreamProtocolSpec extends Spec {
     it("should serialize Payload") {
       val mess = Payload(TradePayload(market, code, contract, BigDecimal(1), 1, new DateTime, 1, false))
 
-      val bytes = toByteArray[StreamPayloadMessage](mess)
-      val fromBytes = fromByteArray[StreamPayloadMessage](bytes)
+      val bytes = toByteArray[MarketStreamPayload](mess)
+      val fromBytes = fromByteArray[MarketStreamPayload](bytes)
 
       assert(fromBytes match {
         case Payload(trade) => true
@@ -33,8 +33,8 @@ class StreamProtocolSpec extends Spec {
     it ("should searialize Broken") {
       val mess = Broken("Err")
 
-      val bytes = toByteArray[StreamPayloadMessage](mess)
-      val fromBytes = fromByteArray[StreamPayloadMessage](bytes)
+      val bytes = toByteArray[MarketStreamPayload](mess)
+      val fromBytes = fromByteArray[MarketStreamPayload](bytes)
 
       assert(fromBytes match {
         case Broken("Err") => true
@@ -44,8 +44,8 @@ class StreamProtocolSpec extends Spec {
     it ("should serialize Completed") {
       val mess = Completed(true)
 
-      val bytes = toByteArray[StreamPayloadMessage](mess)
-      val fromBytes = fromByteArray[StreamPayloadMessage](bytes)
+      val bytes = toByteArray[MarketStreamPayload](mess)
+      val fromBytes = fromByteArray[MarketStreamPayload](bytes)
 
       assert(fromBytes match {
         case Completed(true) => true
@@ -61,10 +61,10 @@ class StreamProtocolSpec extends Spec {
 
       val mess = OpenStream(Market("RTS"), Code("RIH"), start to end)
 
-      val bytes = toByteArray[StreamControlMessage](mess)
+      val bytes = toByteArray[MarketStreamReq](mess)
       log.info("Bytes lenght=" + bytes.size + "; Bytes = " + Arrays.toString(bytes))
 
-      val fromBytes = fromByteArray[StreamControlMessage](bytes)
+      val fromBytes = fromByteArray[MarketStreamReq](bytes)
       
       assert(fromBytes match {
         case OpenStream(Market("RTS"), Code("RIH"), i) => i.start == start && i.end == end
@@ -73,25 +73,25 @@ class StreamProtocolSpec extends Spec {
     }
 
     it("should serialize/deserialize StreamOpened") {
-      val mess = StreamOpened(StreamIdentifier("Test"))
+      val mess = StreamOpened(MarketStream("Test"))
 
-      val bytes = toByteArray[StreamControlMessage](mess)
-      val fromBytes = fromByteArray[StreamControlMessage](bytes)
+      val bytes = toByteArray[MarketStreamRep](mess)
+      val fromBytes = fromByteArray[MarketStreamRep](bytes)
 
       assert(fromBytes match {
-        case StreamOpened(StreamIdentifier("Test")) => true
+        case StreamOpened(MarketStream("Test")) => true
         case _ => false
       })
     }
 
     it("should serialize/deserialize CloseStream") {
-      val mess = CloseStream(StreamIdentifier("Test"))
+      val mess = CloseStream(MarketStream("Test"))
 
-      val bytes = toByteArray[StreamControlMessage](mess)
-      val fromBytes = fromByteArray[StreamControlMessage](bytes)
+      val bytes = toByteArray[MarketStreamReq](mess)
+      val fromBytes = fromByteArray[MarketStreamReq](bytes)
 
       assert(fromBytes match {
-        case CloseStream(StreamIdentifier("Test")) => true
+        case CloseStream(MarketStream("Test")) => true
         case _ => false
       })
     }
@@ -99,8 +99,8 @@ class StreamProtocolSpec extends Spec {
     it("should serialize/deserialize StreamClosed") {
       val mess = StreamClosed()
 
-      val bytes = toByteArray[StreamControlMessage](mess)
-      val fromBytes = fromByteArray[StreamControlMessage](bytes)
+      val bytes = toByteArray[MarketStreamRep](mess)
+      val fromBytes = fromByteArray[MarketStreamRep](bytes)
 
       assert(fromBytes match {
         case StreamClosed() => true

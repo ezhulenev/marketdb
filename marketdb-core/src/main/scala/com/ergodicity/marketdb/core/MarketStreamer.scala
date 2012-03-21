@@ -2,7 +2,6 @@ package com.ergodicity.marketdb.core
 
 import org.slf4j.LoggerFactory
 import org.zeromq.ZMQ.Context
-import com.twitter.util.FuturePool
 import com.ergodicity.zeromq.SocketType._
 import java.util.UUID
 import com.ergodicity.marketdb.stream._
@@ -16,33 +15,22 @@ import MarketIteratee._
 import com.ergodicity.marketdb.model.TradeProtocol._
 import java.util.concurrent.atomic.AtomicBoolean
 import com.twitter.concurrent.{Broker, Offer}
+import com.twitter.finagle.Service
+import com.twitter.util.{Future, FuturePool}
+import java.net.InetSocketAddress
+import com.twitter.finagle.builder.{ServerBuilder, Server}
+import MarketStreamProtocol._
 
 trait MarketStreamer extends MarketService
 
-class TradesStreamer(marketDb: MarketDB, controlEndpoint: String, publishEndpoint: String, heartbeatRef: HeartbeatRef)
-                    (implicit context: Context, pool: FuturePool) extends MarketStreamer {
-  val log = LoggerFactory.getLogger(classOf[TradesStreamer])
+class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoint: String, heartbeatRef: HeartbeatRef)
+                    (implicit context: Context, pool: FuturePool) extends Service[MarketStreamReq, MarketStreamRep] with MarketStreamer {
 
-  private var connectedTradeStreamer: ConnectedTradesStreamer = _
-
-  def start() {
-    log.info("Start TradesStreamer")
-    connectedTradeStreamer = new ConnectedTradesStreamer(marketDb, controlEndpoint, publishEndpoint, heartbeatRef)
-  }
-
-  def shutdown() {
-    log.info("Shutdown TradesStreamer")
-    connectedTradeStreamer.shutdown()
-  }
-}
-
-private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint: String, publishEndpoint: String, heartbeatRef: HeartbeatRef)
-                                           (implicit context: Context, pool: FuturePool) {
-  val log = LoggerFactory.getLogger(classOf[ConnectedTradesStreamer])
+  val log = LoggerFactory.getLogger(classOf[ZMQTradesStreamer])
 
   val InputEndpoint = "inproc://trades-stream"
 
-  import MarketStreamProtocol._
+  var server: Server = _
 
   private val tradeTimeSeries = Ref(Map[String, Offer[Unit]]())
 
@@ -60,39 +48,36 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
   val forwarder = new ZMQForwarder(context, input, output)
   val forwarding = pool(forwarder.run()) onSuccess {_=>
     log.error("Forwarder unexpectedly finished")
-    shutdown()    
+    shutdown()
   } onFailure {err =>
     log.error("Forwarder failed: "+err)
     shutdown()
   }
 
-  // Control socket
-  val control = Client(Rep, options = Bind(controlEndpoint) :: Nil)
-  val controlHandle = control.read[StreamControlMessage]
-  controlHandle.messages foreach {
-    msg =>
-      msg.payload match {
-        case OpenStream(market, code, interval) => control.send[StreamControlMessage](openStream(market, code, interval))
-        case CloseStream(stream) => control.send[StreamControlMessage](closeStream(stream))
-        case unknown => log.error("Unknown StreamControllMessage: " + unknown)
-      }
-      msg.ack()
+  // Finagle Service implementation
+  def apply(request: MarketStreamReq) = request match {
+    case OpenStream(market, code, interval) => Future(openStream(market, code, interval))
+    case CloseStream(stream) => Future(closeStream(stream))
+    case unknown =>
+      log.error("Unknown MarketStreamReq: " + unknown);
+      Future.exception[MarketStreamRep](new IllegalArgumentException("Unknown MarketStreamReq: " + unknown))
+
   }
 
   private def openStream(market: Market, code: Code, interval: Interval) = {
     log.info("Open trades stream; Market=" + market + ", code=" + code + ", interval=" + interval)
 
     val id = UUID.randomUUID().toString
-    val streamIdentifier = StreamIdentifier(id)
-    
+    val streamIdentifier = MarketStream(id)
+
     val timeSeries = TradesTimeSeries(market, code, interval)(marketDb)
-    
+
     def startStreaming() {
       log.info("Start trades streaming: "+id)
       val pub = Client(Pub, options = Connect(InputEndpoint) :: Nil)
 
       val interrupt = new AtomicBoolean(false)
-      val i = zmqStreamer[TradePayload, StreamPayloadMessage](pub, trade => Payload(trade), interrupt)
+      val i = zmqStreamer[TradePayload, MarketStreamPayload](pub, trade => Payload(trade), interrupt)
 
       val stop = new Broker[Unit]
       Offer.select(
@@ -110,7 +95,7 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
       timeSeries.enumerate(i) onSuccess {
         cnt =>
           log.info("Sent " + cnt + " trades; Interrupted = "+interrupt.get)
-          pub.send[StreamPayloadMessage](Completed(interrupt.get))
+          pub.send[MarketStreamPayload](Completed(interrupt.get))
           atomic {implicit txt =>
             tradeTimeSeries.transform(_ - id)
           }
@@ -118,7 +103,7 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
       } onFailure {
         err =>
           log.error("Streaming failed for client: " + id + "; Error: " + err)
-          pub.send[StreamPayloadMessage](Broken(err.getMessage))
+          pub.send[MarketStreamPayload](Broken(err.getMessage))
           atomic {implicit txt =>
             tradeTimeSeries.transform(_ - id)
           }
@@ -139,14 +124,23 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
     StreamOpened(streamIdentifier)
   }
 
-  private def closeStream(stream: StreamIdentifier) = {
+  private def closeStream(stream: MarketStream) = {
     log.info("Close trades stream: "+stream)
     tradeTimeSeries.single().get(stream.id) map {_()}
     StreamClosed()
   }
 
+  def start() {
+    log.info("Start ZMQTradesStreamer server")
+    server = ServerBuilder()
+      .codec(MarketStreamCodec)
+      .bindTo(new InetSocketAddress(finaglePort))
+      .name("ZMQMarketStreamer")
+      .build(this)
+  }
+
   def shutdown() {
-    log.info("Shutdown TradesStreamer")
+    log.info("Shutdown ZMQTradesStreamer server")
     // Close all alive streams
     tradeTimeSeries.single() foreach {_._2()}
     // Shutdown heartbeat
@@ -155,9 +149,7 @@ private[this] class ConnectedTradesStreamer(marketDb: MarketDB, controlEndpoint:
     forwarding.cancel()
     input.close()
     output.close();
-    // Shutdown control
-    controlHandle.close()
-    control.close()
+    // Shutdown finagle server
+    server.close()
   }
 }
-

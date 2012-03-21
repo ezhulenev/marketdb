@@ -20,13 +20,16 @@ import com.ergodicity.zeromq._
 import java.util.concurrent.{TimeUnit, CountDownLatch, Executors}
 import org.hbase.async.{HBaseException, Scanner}
 import java.util.UUID
+import com.twitter.finagle.Service
+import java.net.InetSocketAddress
+import com.twitter.finagle.builder.ClientBuilder
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[Scanner]))
-class TradesStreamerTest {
-  val log = LoggerFactory.getLogger(classOf[TradesStreamerTest])
+class ZMQTradesStreamerTest {
+  val log = LoggerFactory.getLogger(classOf[ZMQTradesStreamerTest])
 
   val market = Market("RTS")
   val code = Code("RIH")
@@ -37,26 +40,31 @@ class TradesStreamerTest {
   implicit val marketId = (_: Market) => ByteArray(0)
   implicit val codeId = (_: Code) => ByteArray(1)
 
-  val ControlEndpoint = "inproc://control-endpoint"
+  val FinaglePort = 3333
   val PublishEndpoint = "inproc://publish-endpoint"
   val Heartbeat = HeartbeatRef("inproc://ping", "inproc://pong")
 
   implicit val context = ZMQ.context(1)
   implicit val Pool = FuturePool(Executors.newCachedThreadPool())
-  
+
   @Test
   def testOpenAndCloseStream() {
     val scanner = mock(classOf[Scanner])
     val marketDb = mock(classOf[MarketDB])
     when(marketDb.scan(any[Market], any[Code], any[Interval])).thenReturn(Future(scanner))
 
-    val tradesStreamer = new ConnectedTradesStreamer(marketDb, ControlEndpoint, PublishEndpoint, Heartbeat)
+    val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
+    tradesStreamer.start()
 
-    val client = Client(Req, options = Connect(ControlEndpoint) :: Nil)
+    val client: Service[MarketStreamReq, MarketStreamRep] = ClientBuilder()
+      .codec(MarketStreamCodec)
+      .hosts(new InetSocketAddress(FinaglePort))
+      .hostConnectionLimit(1)
+      .build()
 
     // Open Stream
-    val open: StreamControlMessage = OpenStream(market, code, interval)
-    val openReply = client.ask[StreamControlMessage, StreamControlMessage](open)
+    val open: MarketStreamReq = OpenStream(market, code, interval)
+    val openReply = client.apply(open)()
 
     log.info("Open reply: " + openReply)
     assert(openReply match {
@@ -65,8 +73,9 @@ class TradesStreamerTest {
     })
 
     // Close stream
-    val close: StreamControlMessage = CloseStream(openReply.asInstanceOf[StreamOpened].stream)
-    val closeReply = client.ask[StreamControlMessage, StreamControlMessage](close)
+    val close: MarketStreamReq = CloseStream(openReply.asInstanceOf[StreamOpened].stream)
+    val closeReply = client.apply(close)()
+
     log.info("Close reply: " + closeReply)
     assert(closeReply match {
       case StreamClosed() => true
@@ -75,7 +84,7 @@ class TradesStreamerTest {
 
     // Close all
     tradesStreamer.shutdown()
-    client.close()
+    client.release()
   }
 
   @Test
@@ -111,21 +120,27 @@ class TradesStreamerTest {
     val marketDb = mock(classOf[MarketDB])
     when(marketDb.scan(any[Market], any[Code], any[Interval])).thenReturn(Future(scanner))
 
-    val tradesStreamer = new ConnectedTradesStreamer(marketDb, ControlEndpoint, PublishEndpoint, Heartbeat)
-    
-    val client = Client(Req, options = Connect(ControlEndpoint) :: Nil)
+    val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
+    tradesStreamer.start()
+
+    val client: Service[MarketStreamReq, MarketStreamRep] = ClientBuilder()
+      .codec(MarketStreamCodec)
+      .hosts(new InetSocketAddress(FinaglePort))
+      .hostConnectionLimit(1)
+      .build()
+
     val sub = Client(Sub, options = Connect(PublishEndpoint) :: Subscribe.all :: Nil)
 
     // Open Stream
-    val open: StreamControlMessage = OpenStream(market, code, interval)
-    val opened = (client.ask[StreamControlMessage, StreamControlMessage](open)).asInstanceOf[StreamOpened]
+    val open: MarketStreamReq = OpenStream(market, code, interval)
+    val opened = (client.apply(open)()).asInstanceOf[StreamOpened]
 
     val patient = new Patient(Heartbeat, Identifier(opened.stream.id))
     tradesStreamer.heartbeat.ping(UUID.randomUUID())
 
     val latch = new CountDownLatch(1)
     var tradesNbr = 0
-    val handle = sub.read[StreamPayloadMessage]
+    val handle = sub.read[MarketStreamPayload]
     handle.messages foreach {
       case ReadMessage(Payload(trade), ack) => tradesNbr += 1; ack()
       case ReadMessage(Completed(interrupted), ack) if !interrupted => log.info("Completed"); latch.countDown(); ack()
@@ -142,7 +157,7 @@ class TradesStreamerTest {
     // Close all
     tradesStreamer.shutdown()
     patient.close()
-    client.close()
+    client.release()
     handle.close()
     sub.close()
   }
@@ -154,18 +169,24 @@ class TradesStreamerTest {
     val marketDb = mock(classOf[MarketDB])
     when(marketDb.scan(any[Market], any[Code], any[Interval])).thenReturn(Future(scanner))
 
-    val tradesStreamer = new ConnectedTradesStreamer(marketDb, ControlEndpoint, PublishEndpoint, Heartbeat)
+    val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
+    tradesStreamer.start()
 
-    val client = Client(Req, options = Connect(ControlEndpoint) :: Nil)
+    val client: Service[MarketStreamReq, MarketStreamRep] = ClientBuilder()
+      .codec(MarketStreamCodec)
+      .hosts(new InetSocketAddress(FinaglePort))
+      .hostConnectionLimit(1)
+      .build()
+
     val sub = Client(Sub, options = Connect(PublishEndpoint) :: Subscribe.all :: Nil)
 
     // Open Stream
-    val open: StreamControlMessage = OpenStream(market, code, interval)
-    val opened = (client.ask[StreamControlMessage, StreamControlMessage](open)).asInstanceOf[StreamOpened]
+    val open: MarketStreamReq = OpenStream(market, code, interval)
+    val opened = (client.apply(open)()).asInstanceOf[StreamOpened]
 
     val latch = new CountDownLatch(1)
     var tradesNbr = 0
-    val handle = sub.read[StreamPayloadMessage]
+    val handle = sub.read[MarketStreamPayload]
     handle.messages foreach {
       case ReadMessage(Payload(trade), ack) => tradesNbr += 1; ack()
       case ReadMessage(Broken(e), ack) => log.info("Broken: " + e); latch.countDown(); ack()
@@ -185,7 +206,7 @@ class TradesStreamerTest {
     // Close all
     tradesStreamer.shutdown()
     patient.close()
-    client.close()
+    client.release()
     handle.close()
     sub.close()
   }
