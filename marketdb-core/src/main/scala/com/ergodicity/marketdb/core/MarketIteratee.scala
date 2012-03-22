@@ -13,6 +13,7 @@ import org.hbase.async.{KeyValue, Scanner}
 import sbinary.{Writes, Reads}
 import com.twitter.ostrich.stats.Stats
 import java.util.concurrent.atomic.AtomicBoolean
+import com.ergodicity.zeromq.Serializer
 
 sealed trait MarketTimeSeries[E] {
   import com.ergodicity.marketdb.AsyncHBase._
@@ -91,13 +92,13 @@ case class TradesTimeSeries(market: Market, code: Code, interval: Interval)
 object MarketIteratee {
   import com.ergodicity.zeromq.{Client => ZMQClient}
 
-  def zmqStreamer[E, A](client: ZMQClient, envelop: E=>A, interrupt: AtomicBoolean = new AtomicBoolean(false))
+  def zmqStreamer[E, A](client: ZMQClient, serializer: Serializer[E], interrupt: AtomicBoolean = new AtomicBoolean(false))
                      (implicit writes: Writes[A]): IterV[E, Int] = {
 
     def step(is: Int, e: E)(s: Input[E]): IterV[E, Int] = {
       s(el = e2 => {
         Stats.incr("trades_streamed_zmq", 1);
-        client.send(envelop(e2))
+        client.send(e2)(serializer)
         if (interrupt.get) Done(is + 1, EOF[E]) else Cont(step(is + 1, e2))
       },
         empty = Cont(step(is, e)),
@@ -107,7 +108,7 @@ object MarketIteratee {
     def first(s: Input[E]): IterV[E, Int] = {
       s(el = e1 => {
         Stats.incr("trades_streamed_zmq", 1);
-        client.send(envelop(e1))
+        client.send(e1)(serializer)
         Cont(step(1, e1))
       },
         empty = Cont(first),

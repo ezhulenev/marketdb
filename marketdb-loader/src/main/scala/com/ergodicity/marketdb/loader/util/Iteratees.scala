@@ -9,9 +9,9 @@ import com.twitter.finagle.kestrel.Client
 import com.twitter.ostrich.stats.Stats
 import com.twitter.concurrent.Offer
 import java.util.concurrent.atomic.AtomicReference
-import com.ergodicity.zeromq.{Client => ZMQClient}
 import sbinary.{EOF=>No,_}
 import sbinary.Operations._
+import com.ergodicity.zeromq.{Serializer, Client => ZMQClient}
 
 
 case class LoaderReport[E](count: Int, list: List[E])
@@ -48,7 +48,7 @@ object Iteratees {
   }
 
   def zmqBulkLoader[E](client: ZMQClient)
-                      (implicit writes: Writes[List[E]], settings: BatchSettings): IterV[E, LoaderReport[E]] = {
+                      (implicit serializer: Serializer[List[E]], settings: BatchSettings): IterV[E, LoaderReport[E]] = {
     bulkLoader(settings) {list: List[E] =>
       client.send(list)
     }

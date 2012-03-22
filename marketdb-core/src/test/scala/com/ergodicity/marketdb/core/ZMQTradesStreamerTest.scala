@@ -46,6 +46,17 @@ class ZMQTradesStreamerTest {
 
   implicit val context = ZMQ.context(1)
   implicit val Pool = FuturePool(Executors.newCachedThreadPool())
+  
+  implicit val deserializer = new Deserializer[MarketStreamPayload] {
+    import sbinary._
+    import Operations._
+    def apply(frames: Seq[Frame]) = {
+      frames match {
+        case Seq(id, data) => fromByteArray[MarketStreamPayload](data.payload.toArray)
+        case err => throw new IllegalStateException("Illegal frames seq = "+err)
+      }
+    }
+  }
 
   @Test
   def testOpenAndCloseStream() {
@@ -129,11 +140,13 @@ class ZMQTradesStreamerTest {
       .hostConnectionLimit(1)
       .build()
 
-    val sub = Client(Sub, options = Connect(PublishEndpoint) :: Subscribe.all :: Nil)
+    val sub = Client(Sub, options = Connect(PublishEndpoint) :: Nil)
 
     // Open Stream
     val open: MarketStreamReq = OpenStream(market, code, interval)
     val opened = (client.apply(open)()).asInstanceOf[StreamOpened]
+
+    sub.subscribe(Subscribe(opened.stream.id.getBytes))
 
     val patient = new Patient(Heartbeat, Identifier(opened.stream.id))
     tradesStreamer.heartbeat.ping(UUID.randomUUID())

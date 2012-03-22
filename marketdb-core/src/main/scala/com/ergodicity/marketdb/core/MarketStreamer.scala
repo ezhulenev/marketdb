@@ -20,6 +20,8 @@ import com.twitter.util.{Future, FuturePool}
 import java.net.InetSocketAddress
 import com.twitter.finagle.builder.{ServerBuilder, Server}
 import MarketStreamProtocol._
+import sbinary._
+import Operations._
 
 trait MarketStreamer extends MarketService
 
@@ -77,7 +79,10 @@ class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoin
       val pub = Client(Pub, options = Connect(InputEndpoint) :: Nil)
 
       val interrupt = new AtomicBoolean(false)
-      val i = zmqStreamer[TradePayload, MarketStreamPayload](pub, trade => Payload(trade), interrupt)
+      val tradeSerializer = new Serializer[TradePayload] {
+        def apply(obj: TradePayload) = Seq(Frame(id.getBytes), Frame(toByteArray[MarketStreamPayload](Payload(obj))))
+      }
+      val i = zmqStreamer[TradePayload, MarketStreamPayload](pub, tradeSerializer, interrupt)
 
       val stop = new Broker[Unit]
       Offer.select(
@@ -92,10 +97,14 @@ class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoin
         tradeTimeSeries.transform(_ + (id ->stopOffer))
       }
 
+      val notificationsSerializer = new Serializer[MarketStreamPayload] {
+        def apply(obj: MarketStreamPayload) = Seq(Frame(id.getBytes), Frame(toByteArray[MarketStreamPayload](obj)))
+      }
+
       timeSeries.enumerate(i) onSuccess {
         cnt =>
           log.info("Sent " + cnt + " trades; Interrupted = "+interrupt.get)
-          pub.send[MarketStreamPayload](Completed(interrupt.get))
+          pub.send[MarketStreamPayload](Completed(interrupt.get))(notificationsSerializer)
           atomic {implicit txt =>
             tradeTimeSeries.transform(_ - id)
           }
@@ -103,7 +112,7 @@ class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoin
       } onFailure {
         err =>
           log.error("Streaming failed for client: " + id + "; Error: " + err)
-          pub.send[MarketStreamPayload](Broken(err.getMessage))
+          pub.send[MarketStreamPayload](Broken(err.getMessage))(notificationsSerializer)
           atomic {implicit txt =>
             tradeTimeSeries.transform(_ - id)
           }
