@@ -3,15 +3,15 @@ package com.ergodicity.marketdb.stream
 import sbinary.Operations._
 import org.joda.time.{DateTime, Interval}
 import sbinary._
-import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
 import org.jboss.netty.channel.{Channel, ChannelHandlerContext}
 import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
 import org.jboss.netty.buffer.{ChannelBuffers, ChannelBuffer}
+import com.ergodicity.marketdb.model.{Security, TradePayload, Market}
 
 case class MarketStream(id: String)
 
 sealed trait MarketStreamReq
-case class OpenStream(market: Market, code: Code, interval: Interval) extends MarketStreamReq
+case class OpenStream(market: Market, security: Security, interval: Interval) extends MarketStreamReq
 case class CloseStream(stream: MarketStream) extends MarketStreamReq
 
 sealed trait MarketStreamRep
@@ -27,8 +27,9 @@ case class Completed(interrupted: Boolean) extends MarketStreamPayload
 
 object MarketStreamProtocol extends DefaultProtocol {
 
+  import com.ergodicity.marketdb.model.MarketProtocol._
   import com.ergodicity.marketdb.model.TradeProtocol._
-  
+
   implicit object IntervalFormat extends Format[Interval] {
     def reads(in: Input) = new Interval(read[DateTime](in), read[DateTime](in))
 
@@ -48,7 +49,7 @@ object MarketStreamProtocol extends DefaultProtocol {
 
   implicit object MarketStreamReqFormat extends Format[MarketStreamReq] {
     def reads(in: Input) = read[Byte](in) match {
-      case 0 => OpenStream(read[Market](in), read[Code](in), read[Interval](in))
+      case 0 => OpenStream(read[Market](in), read[Security](in), read[Interval](in))
       case 1 => CloseStream(read[MarketStream](in))
       case _ => throw new RuntimeException("Unsupported stream message")
     }
@@ -57,7 +58,7 @@ object MarketStreamProtocol extends DefaultProtocol {
       case OpenStream(market, code, interval) =>
         write[Byte](out, 0)
         write[Market](out, market)
-        write[Code](out, code)
+        write[Security](out, code)
         write[Interval](out, interval)
       case CloseStream(stream) =>
         write[Byte](out, 1)

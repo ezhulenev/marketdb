@@ -3,7 +3,7 @@ package com.ergodicity.marketdb.core
 import org.slf4j.LoggerFactory
 import org.junit.Test
 import org.joda.time.DateTime
-import com.ergodicity.marketdb.model.{TradePayload, Contract, Code, Market}
+import com.ergodicity.marketdb.model.{TradePayload, Security, Market}
 import MarketIteratee._
 import com.ergodicity.marketdb.{ByteArray, ScannerMock}
 import org.junit.runner.RunWith
@@ -24,22 +24,21 @@ class MarketIterateeTest {
   val log = LoggerFactory.getLogger(classOf[MarketIterateeTest])
 
   val market = Market("RTS")
-  val code = Code("RIH")
-  val contract = Contract("RTS 3.12")
+  val security = Security("RTS 3.12")
   val time = new DateTime
 
   val now = new DateTime
   val interval = now.withHourOfDay(0) to now.withHourOfDay(23)
 
   implicit val marketId = (_: Market) => ByteArray(0)
-  implicit val codeId = (_: Code) => ByteArray(1)
+  implicit val codeId = (_: Security) => ByteArray(1)
 
   @Test
   def testOpenScannerFailed() {
     implicit val marketDb = mock(classOf[MarketDB])
     when(marketDb.scan(any(), any(), any())).thenThrow(new IllegalStateException)
 
-    val trades = TradesTimeSeries(market, code, interval)
+    val trades = TradesTimeSeries(market, security, interval)
     import org.scalatest.Assertions._
     intercept[IllegalStateException] {
       trades.enumerate(counter[TradePayload])
@@ -49,13 +48,13 @@ class MarketIterateeTest {
   @Test
   def testIterateOverScanner() {
     val Count = 100
-    val payloads = for (i <- 1 to Count) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to Count) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
     val scanner = ScannerMock(payloads)
 
     implicit val marketDb = mock(classOf[MarketDB])
     when(marketDb.scan(any(), any(), any())).thenReturn(Future(scanner))
 
-    val trades = TradesTimeSeries(market, code, interval)
+    val trades = TradesTimeSeries(market, security, interval)
     val iterv = trades.enumerate(counter[TradePayload])
     val count = iterv.map(_.run)()
     log.info("Count: "+count)
@@ -67,14 +66,14 @@ class MarketIterateeTest {
   @Test
   def testIterationIsBroken() {
     val Count = 100
-    val payloads = for (i <- 1 to Count) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to Count) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
     val err = new IllegalStateException
     val scanner = ScannerMock(payloads, failOnBatch = Some(3, err))
 
     implicit val marketDb = mock(classOf[MarketDB])
     when(marketDb.scan(any(), any(), any())).thenReturn(Future(scanner))
 
-    val trades = TradesTimeSeries(market, code, interval)
+    val trades = TradesTimeSeries(market, security, interval)
     trades.enumerate(counter[TradePayload]).map(_.run) onSuccess {_ =>
       assert(false)
     } onFailure {err =>

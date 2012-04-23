@@ -1,13 +1,15 @@
-package com.ergodicity.marketdb.uid
+package integration.ergodicity.marketdb.uid
 
 import java.util.Random
 import java.lang.StringBuffer
 import org.scalatest.{GivenWhenThen, Spec}
 import java.io.File
 import com.twitter.util.Eval
-import com.ergodicity.marketdb.{EvalSupport, TimeRecording, ByteArray}
+import integration.ergodicity.marketdb.{TimeRecording, EvalSupport}
 import com.ergodicity.marketdb.core.MarketDBConfig
 import org.hbase.async.HBaseClient
+import com.ergodicity.marketdb.uid.{UIDProvider, UniqueId, UIDCache}
+import com.ergodicity.marketdb.ByteArray
 
 class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecording with EvalSupport {
 

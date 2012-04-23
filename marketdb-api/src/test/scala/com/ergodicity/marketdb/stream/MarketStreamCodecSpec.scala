@@ -7,8 +7,8 @@ import com.twitter.finagle.builder.{Server, ServerBuilder, ClientBuilder}
 import com.twitter.util.Future
 import org.joda.time.DateTime
 import org.scala_tools.time.Implicits._
-import com.ergodicity.marketdb.model.{Code, Market}
 import java.util.concurrent.{TimeUnit, CountDownLatch}
+import com.ergodicity.marketdb.model.{Security, Market}
 
 class MarketStreamCodecSpec extends Spec {
 
@@ -43,7 +43,7 @@ class MarketStreamCodecSpec extends Spec {
 
       // Open multiple streams
       for (i <- 1 to Count) {
-        client(OpenStream(Market("RTS"), Code("Code"), new DateTime to new DateTime)) onSuccess {
+        client(OpenStream(Market("RTS"), Security("Code"), new DateTime to new DateTime)) onSuccess {
           case StreamOpened(MarketStream("111")) => openLatch.countDown()
           case _ =>
         } onFailure { error => error.printStackTrace() }

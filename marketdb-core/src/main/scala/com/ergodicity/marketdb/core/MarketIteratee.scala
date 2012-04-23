@@ -4,7 +4,6 @@ import scalaz._
 import IterV._
 import scalaz.{Input, IterV}
 import org.joda.time.Interval
-import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
 import collection.JavaConversions._
 import sbinary.Operations._
 import com.twitter.util.{Promise, Future}
@@ -13,6 +12,7 @@ import org.hbase.async.{KeyValue, Scanner}
 import sbinary.{Writes, Reads}
 import com.twitter.ostrich.stats.Stats
 import java.util.concurrent.atomic.AtomicBoolean
+import com.ergodicity.marketdb.model.{Security, TradePayload, Market}
 
 sealed trait MarketTimeSeries[E] {
   import com.ergodicity.marketdb.AsyncHBase._
@@ -83,9 +83,9 @@ sealed trait MarketTimeSeries[E] {
 }
 
 
-case class TradesTimeSeries(market: Market, code: Code, interval: Interval)
+case class TradesTimeSeries(market: Market, security: Security, interval: Interval)
                            (implicit marketDb: MarketDB) extends MarketTimeSeries[TradePayload] {
-  def openScanner = marketDb.scan(market, code, interval)
+  def openScanner = marketDb.scan(market, security, interval)
 }
 
 object MarketIteratee {

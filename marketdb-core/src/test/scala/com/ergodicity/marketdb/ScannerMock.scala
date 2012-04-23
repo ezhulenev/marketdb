@@ -23,23 +23,23 @@ object ScannerMock {
   val log = LoggerFactory.getLogger("ScannerMock")
 
   def apply(trades: Seq[TradePayload], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
-           (implicit marketId: Market => ByteArray, codeId: Code => ByteArray) =
+           (implicit marketId: Market => ByteArray, codeId: Security => ByteArray) =
     fromTradePayloads(trades, batchSize, failOnBatch)
 
   val Family = ByteArray("id").toArray
 
-  def tradesToKeyValues(trades: Seq[TradePayload])(implicit marketId: Market => ByteArray, codeId: Code => ByteArray) = {
+  def tradesToKeyValues(trades: Seq[TradePayload])(implicit marketId: Market => ByteArray, codeId: Security => ByteArray) = {
     import sbinary.Operations._
     import com.ergodicity.marketdb.model.TradeProtocol._
     trades map {
       payload =>
-        val k = TradeRow(marketId(payload.market), codeId(payload.code), payload.time)
+        val k = TradeRow(marketId(payload.market), codeId(payload.security), payload.time)
         new KeyValue(k.toArray, Family, Bytes.fromLong(payload.tradeId), toByteArray(payload))
     }
   }
 
   def fromTradePayloads(values: Seq[TradePayload], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
-                       (implicit marketId: Market => ByteArray, codeId: Code => ByteArray) = {
+                       (implicit marketId: Market => ByteArray, codeId: Security => ByteArray) = {
     fromKeyValues(tradesToKeyValues(values), batchSize, failOnBatch)
   }
 
@@ -102,13 +102,12 @@ class ScannerMockTest {
   import ScannerMock._
 
   implicit val marketId = (_: Market) => ByteArray(0)
-  implicit val codeId = (_: Code) => ByteArray(1)
+  implicit val codeId = (_: Security) => ByteArray(1)
 
   val market = Market("RTS")
-  val code = Code("RIH")
-  val contract = Contract("RTS 3.12")
+  val security = Security("RTS 3.12")
   val time = new DateTime
-  val payload = TradePayload(market, code, contract, BigDecimal("111"), 1, time, 11l, true)
+  val payload = TradePayload(market, security, BigDecimal("111"), 1, time, 11l, true)
 
   @Test
   def testSinglePayload() {
@@ -123,9 +122,9 @@ class ScannerMockTest {
 
   @Test
   def testGroupByKey() {
-    val payload1 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, 0), 11l, true)
-    val payload2 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 1, 0), 11l, true)
-    val payload3 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), 11l, true)
+    val payload1 = TradePayload(market, security, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, 0), 11l, true)
+    val payload2 = TradePayload(market, security, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 1, 0), 11l, true)
+    val payload3 = TradePayload(market, security, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), 11l, true)
 
     val scanner = fromTradePayloads(Seq(payload1, payload2, payload3))
 
@@ -140,9 +139,9 @@ class ScannerMockTest {
   
   @Test
   def testFailOnBatch() {
-    val payload1 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, 0), 11l, true)
-    val payload2 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 1, 0), 11l, true)
-    val payload3 = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), 11l, true)
+    val payload1 = TradePayload(market, security, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, 0), 11l, true)
+    val payload2 = TradePayload(market, security, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 1, 0), 11l, true)
+    val payload3 = TradePayload(market, security, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), 11l, true)
 
     val err = mock(classOf[HBaseException])
     val scanner = fromTradePayloads(Seq(payload1, payload2, payload3), 1, Some(1, err))
@@ -163,7 +162,7 @@ class ScannerMockTest {
   def testSplitToBatches() {
     var list = List[TradePayload]()
     for (i <- 1 to 95) {
-      val payload = TradePayload(market, code, contract, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, i), i, true)
+      val payload = TradePayload(market, security, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 0, i), i, true)
       list = payload :: list
     }
     

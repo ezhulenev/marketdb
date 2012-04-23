@@ -8,7 +8,7 @@ import sbinary._
 import Operations._
 import MarketStreamProtocol._
 import java.util.Arrays
-import com.ergodicity.marketdb.model.{Contract, TradePayload, Market, Code}
+import com.ergodicity.marketdb.model.{Security, TradePayload, Market}
 
 
 class StreamProtocolSpec extends Spec {
@@ -16,11 +16,10 @@ class StreamProtocolSpec extends Spec {
 
   describe("Stream Payload Protocol") {
     val market = Market("RTS")
-    val code = Code("RIH")
-    val contract = Contract("RIM 3.12")
+    val security = Security("RIM 3.12")
 
     it("should serialize Payload") {
-      val mess = Payload(TradePayload(market, code, contract, BigDecimal(1), 1, new DateTime, 1, false))
+      val mess = Payload(TradePayload(market, security, BigDecimal(1), 1, new DateTime, 1, false))
 
       val bytes = toByteArray[MarketStreamPayload](mess)
       val fromBytes = fromByteArray[MarketStreamPayload](bytes)
@@ -59,7 +58,7 @@ class StreamProtocolSpec extends Spec {
       val end = new DateTime()
       val start = end - 2.days
 
-      val mess = OpenStream(Market("RTS"), Code("RIH"), start to end)
+      val mess = OpenStream(Market("RTS"), Security("RIH"), start to end)
 
       val bytes = toByteArray[MarketStreamReq](mess)
       log.info("Bytes lenght=" + bytes.size + "; Bytes = " + Arrays.toString(bytes))
@@ -67,7 +66,7 @@ class StreamProtocolSpec extends Spec {
       val fromBytes = fromByteArray[MarketStreamReq](bytes)
       
       assert(fromBytes match {
-        case OpenStream(Market("RTS"), Code("RIH"), i) => i.start == start && i.end == end
+        case OpenStream(Market("RTS"), Security("RIH"), i) => i.start == start && i.end == end
         case _ => false
       })
     }

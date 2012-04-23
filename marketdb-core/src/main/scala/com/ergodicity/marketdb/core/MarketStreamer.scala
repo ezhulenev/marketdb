@@ -10,7 +10,6 @@ import concurrent.stm._
 import com.twitter.conversions.time._
 import com.ergodicity.zeromq._
 import org.zeromq.{ZMQForwarder, ZMQ}
-import com.ergodicity.marketdb.model.{TradePayload, Market, Code}
 import MarketIteratee._
 import com.ergodicity.marketdb.model.TradeProtocol._
 import java.util.concurrent.atomic.AtomicBoolean
@@ -20,6 +19,7 @@ import com.twitter.util.{Future, FuturePool}
 import java.net.InetSocketAddress
 import com.twitter.finagle.builder.{ServerBuilder, Server}
 import MarketStreamProtocol._
+import com.ergodicity.marketdb.model.{Security, TradePayload, Market}
 
 trait MarketStreamer extends MarketService
 
@@ -64,13 +64,13 @@ class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoin
 
   }
 
-  private def openStream(market: Market, code: Code, interval: Interval) = {
-    log.info("Open trades stream; Market=" + market + ", code=" + code + ", interval=" + interval)
+  private def openStream(market: Market, security: Security, interval: Interval) = {
+    log.info("Open trades stream; Market=" + market + ", security=" + security + ", interval=" + interval)
 
     val id = UUID.randomUUID().toString
     val streamIdentifier = MarketStream(id)
 
-    val timeSeries = TradesTimeSeries(market, code, interval)(marketDb)
+    val timeSeries = TradesTimeSeries(market, security, interval)(marketDb)
 
     def startStreaming() {
       log.info("Start trades streaming: "+id)

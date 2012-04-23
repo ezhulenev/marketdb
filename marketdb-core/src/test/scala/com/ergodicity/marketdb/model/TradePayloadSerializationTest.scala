@@ -14,12 +14,11 @@ class TradePayloadSerializationTest extends Spec {
 
   describe("TradePayload") {
     val market = Market("RTS")
-    val code = Code("Rih")
-    val contract = Contract("RTS 3.12")
+    val security = Security("RTS 3.12")
     val now = new DateTime
 
     it("should serialized and deserialized to/from byte array") {
-      val payload = TradePayload(market, code, contract, BigDecimal("1.111"), 1, now, 11l, false)
+      val payload = TradePayload(market, security, BigDecimal("1.111"), 1, now, 11l, false)
 
       val binary = toByteArray(payload)
       val ba = ByteArray(binary)
@@ -30,17 +29,16 @@ class TradePayloadSerializationTest extends Spec {
       log.info("From binary: " + fromBinary)
 
       assert(fromBinary match {
-        case TradePayload(mrkt, cd, cntrct, prc, amnt, t, id, ns) =>
-          mrkt == market && cd == code &&
-            cntrct == contract && prc == BigDecimal("1.111") &&
+        case TradePayload(mrkt, sec, prc, amnt, t, id, ns) =>
+          mrkt == market && sec == security && prc == BigDecimal("1.111") &&
             amnt == 1 && t == now && id == 11l && ns == false
         case _ => false
       })
     }
 
     it("should serialize and deserialize to/from List") {
-      val payload1 = TradePayload(market, code, contract, BigDecimal("1.111"), 1, now, 11l, false)
-      val payload2 = TradePayload(market, code, contract, BigDecimal("1.111"), 1, now, 12l, false)
+      val payload1 = TradePayload(market, security, BigDecimal("1.111"), 1, now, 11l, false)
+      val payload2 = TradePayload(market, security, BigDecimal("1.111"), 1, now, 12l, false)
 
       val list = List(payload1, payload2)
 

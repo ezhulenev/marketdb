@@ -5,7 +5,7 @@ import org.powermock.modules.junit4.PowerMockRunner
 import org.junit.runner.RunWith
 import org.slf4j.LoggerFactory
 import org.junit.Test
-import com.ergodicity.marketdb.model.{TradePayload, Contract, Code, Market}
+import com.ergodicity.marketdb.model.{TradePayload, Market, Security}
 import com.ergodicity.marketdb.{ScannerMock, ByteArray}
 import org.mockito.Mockito._
 import org.mockito.Matchers._
@@ -32,13 +32,12 @@ class ZMQTradesStreamerTest {
   val log = LoggerFactory.getLogger(classOf[ZMQTradesStreamerTest])
 
   val market = Market("RTS")
-  val code = Code("RIH")
-  val contract = Contract("RTS 3.12")
+  val security = Security("RTS 3.12")
   val time = new DateTime
   val interval = time.withHourOfDay(0) to time.withHourOfDay(23)
 
   implicit val marketId = (_: Market) => ByteArray(0)
-  implicit val codeId = (_: Code) => ByteArray(1)
+  implicit val codeId = (_: Security) => ByteArray(1)
 
   val FinaglePort = 3333
   val PublishEndpoint = "inproc://publish-endpoint"
@@ -51,7 +50,7 @@ class ZMQTradesStreamerTest {
   def testOpenAndCloseStream() {
     val scanner = mock(classOf[Scanner])
     val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any[Market], any[Code], any[Interval])).thenReturn(Future(scanner))
+    when(marketDb.scan(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
 
     val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
     tradesStreamer.start()
@@ -63,7 +62,7 @@ class ZMQTradesStreamerTest {
       .build()
 
     // Open Stream
-    val open: MarketStreamReq = OpenStream(market, code, interval)
+    val open: MarketStreamReq = OpenStream(market, security, interval)
     val openReply = client.apply(open)()
 
     log.info("Open reply: " + openReply)
@@ -114,11 +113,11 @@ class ZMQTradesStreamerTest {
   @Test
   def testStreamingTrades() {
     val TradesCount = 1000
-    val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
 
     val scanner = ScannerMock(payloads, 100)
     val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any[Market], any[Code], any[Interval])).thenReturn(Future(scanner))
+    when(marketDb.scan(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
 
     val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
     tradesStreamer.start()
@@ -132,7 +131,7 @@ class ZMQTradesStreamerTest {
     val sub = Client(Sub, options = Connect(PublishEndpoint) :: Subscribe.all :: Nil)
 
     // Open Stream
-    val open: MarketStreamReq = OpenStream(market, code, interval)
+    val open: MarketStreamReq = OpenStream(market, security, interval)
     val opened = (client.apply(open)()).asInstanceOf[StreamOpened]
 
     val patient = new Patient(Heartbeat, Identifier(opened.stream.id))
@@ -151,7 +150,7 @@ class ZMQTradesStreamerTest {
     assert(tradesNbr == TradesCount, "Expected = "+TradesCount+" actual = "+tradesNbr)
 
     // Verify
-    verify(marketDb, only()).scan(market, code, interval)
+    verify(marketDb, only()).scan(market, security, interval)
     verify(scanner).close();
 
     // Close all
@@ -163,11 +162,11 @@ class ZMQTradesStreamerTest {
   }
 
   private def scannerFailed(failOn: Some[(Int, HBaseException)], BatchSize: Int, TradesExpected: Int) {
-    val payloads = for (i <- 1 to 100) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to 100) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
     val scanner = ScannerMock(payloads, BatchSize, failOn);
 
     val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any[Market], any[Code], any[Interval])).thenReturn(Future(scanner))
+    when(marketDb.scan(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
 
     val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
     tradesStreamer.start()
@@ -181,7 +180,7 @@ class ZMQTradesStreamerTest {
     val sub = Client(Sub, options = Connect(PublishEndpoint) :: Subscribe.all :: Nil)
 
     // Open Stream
-    val open: MarketStreamReq = OpenStream(market, code, interval)
+    val open: MarketStreamReq = OpenStream(market, security, interval)
     val opened = (client.apply(open)()).asInstanceOf[StreamOpened]
 
     val latch = new CountDownLatch(1)
@@ -200,7 +199,7 @@ class ZMQTradesStreamerTest {
     assert(tradesNbr == TradesExpected, "Expected: " + TradesExpected + "; actually got: " + tradesNbr)
 
     // Verify
-    verify(marketDb, only()).scan(market, code, interval)
+    verify(marketDb, only()).scan(market, security, interval)
     verify(scanner).close();
 
     // Close all

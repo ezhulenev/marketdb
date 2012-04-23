@@ -60,12 +60,12 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
     log.info("marketDB stopped")
   }
   
-  def scan(market: Market, code: Code, interval: Interval) = {
-    log.info("Scan marketDB for market="+market.value+"; Code="+code.value+"; Interval="+interval)
+  def scan(market: Market, security: Security, interval: Interval) = {
+    log.info("Scan marketDB for market="+market.value+"; Security="+security.isin+"; Interval="+interval)
 
     // Get Unique Ids for market and code
     val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(market.value)}
-    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(code.value)}
+    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(security.isin)}
 
     (marketUid join codeUid) map {
       tuple =>
@@ -86,7 +86,7 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
 
     // Get Unique Ids for market and code
     val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(payload.market.value)}
-    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(payload.code.value)}
+    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(payload.security.isin)}
 
     val binaryTradeReaction: Future[Reaction[BinaryTrade]] = (marketUid join codeUid) map {
       tuple =>

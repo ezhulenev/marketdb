@@ -7,7 +7,7 @@ import IterV._
 import org.joda.time.format.DateTimeFormat
 import java.util.zip.{ZipEntry, ZipInputStream}
 import java.io.{Reader, InputStreamReader, InputStream, BufferedReader}
-import com.ergodicity.marketdb.model.{Contract, Code, Market, TradePayload}
+import com.ergodicity.marketdb.model.{Security, Market, TradePayload}
 
 
 sealed trait TradeData[R <: DataRef] {
@@ -36,15 +36,15 @@ object TradeDataIteratee {
     private def parseTradePayload(line: String): TradePayload = {
       val split = line.split(";")
 
-      val code = Code(split(0))
-      val contract = Contract(split(1))
+      // val shortCode = split(0) // ignore
+      val security = Security(split(1))
       val decimal = BigDecimal(split(2))
       val amount = split(3).toInt
       val time = DateFormat.parseDateTime(split(4))
       val tradeId = split(5).toLong
       val nosystem = split(6) == "1" // Nosystem	0 - Рыночная сделка, 1 - Адресная сделка
 
-      TradePayload(RTS, code, contract, decimal, amount, time, tradeId, nosystem)
+      TradePayload(RTS, security, decimal, amount, time, tradeId, nosystem)
     }
 
     def enumReader[A](r: BufferedReader, it: IterV[TradePayload, A]): IO[IterV[TradePayload, A]] = {

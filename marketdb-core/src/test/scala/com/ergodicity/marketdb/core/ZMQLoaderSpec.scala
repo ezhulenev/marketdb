@@ -5,20 +5,19 @@ import org.scalatest.Spec
 import org.mockito.Mockito._
 import com.ergodicity.zeromq.{Client, Connect}
 import org.joda.time.DateTime
-import com.ergodicity.marketdb.model.{Contract, Code, Market, TradePayload}
 import org.scala_tools.time.Implicits._
 import com.ergodicity.zeromq.SocketType._
 import com.ergodicity.marketdb.model.TradeProtocol._
 import org.zeromq.ZMQ
 import com.twitter.util.Future
 import org.mockito.Matchers._
+import com.ergodicity.marketdb.model._
 
 class ZMQLoaderSpec extends Spec {
   val log = LoggerFactory.getLogger(classOf[ZMQLoaderSpec])
 
   val market = Market("RTS")
-  val code = Code("RIH")
-  val contract = Contract("RTS 3.12")
+  val security = Security("RTS 3.12")
   val time = new DateTime
   val interval = time.withHourOfDay(0) to time.withHourOfDay(23)
 
@@ -34,7 +33,7 @@ class ZMQLoaderSpec extends Spec {
       loader.start()
       val client = Client(Pub, options = Connect("tcp://localhost:30000") :: Nil)(ZMQ.context(1))
 
-      val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, code, contract, BigDecimal("111"), 1, time, i, true);
+      val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
 
       client.send(payloads.toList)
 

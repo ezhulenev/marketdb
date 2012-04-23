@@ -1,4 +1,4 @@
-package com.ergodicity.marketdb
+package integration.ergodicity.marketdb
 
 import org.slf4j.LoggerFactory
 

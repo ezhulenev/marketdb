@@ -10,9 +10,8 @@ class TradeEventModelTest extends Spec {
   val log = LoggerFactory.getLogger(classOf[TradeEventModelTest])
 
   val market = Market("Test")
-  val code = Code("RIH")
-  val contract = Contract("RTS 3.12")
-  val payload = TradePayload(market, code, contract, BigDecimal("150000.50"), 1, new DateTime(), 11111l, false)
+  val security = Security("RTS 3.12")
+  val payload = TradePayload(market, security, BigDecimal("150000.50"), 1, new DateTime(), 11111l, false)
 
   describe("Trade event sourced model") {
     it("should create DraftTrade") {

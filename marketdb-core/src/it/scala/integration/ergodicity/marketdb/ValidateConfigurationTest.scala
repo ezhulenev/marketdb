@@ -1,6 +1,5 @@
-package com.ergodicity.marketdb
+package integration.ergodicity.marketdb
 
-import core.MarketDBConfig
 import org.slf4j.LoggerFactory
 import org.scalatest.Spec
 import java.util.concurrent.TimeUnit
@@ -8,6 +7,7 @@ import com.stumbleupon.async.Deferred
 import java.io.File
 import com.twitter.util.Eval
 import org.hbase.async.{HBaseClient, TableNotFoundException}
+import com.ergodicity.marketdb.core.MarketDBConfig
 
 class ValidateConfigurationTest extends Spec with EvalSupport {
   val log = LoggerFactory.getLogger(classOf[ValidateConfigurationTest])

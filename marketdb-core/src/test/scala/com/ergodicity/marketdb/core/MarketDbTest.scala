@@ -27,10 +27,9 @@ class MarketDbTest extends HBaseMatchers {
   val tradesTable = "TRADES"
 
   val market = Market("RTS")
-  val code = Code("RIH")
-  val contract = Contract("RTS 3.12")
+  val security = Security("RTS 3.12")
   val time = new DateTime
-  val payload = TradePayload(market, code, contract, BigDecimal("111"), 1, time, 11l, true)
+  val payload = TradePayload(market, security, BigDecimal("111"), 1, time, 11l, true)
 
 
   // Prepare mocks for testing
@@ -46,7 +45,7 @@ class MarketDbTest extends HBaseMatchers {
   def testTradeRejectedForUidValidationError() {
     // Init mocks
     when(marketUidProvider.provideId("RTS")).thenThrow(mock(classOf[RuntimeException]))
-    when(codeUidProvider.provideId("RIH")).thenThrow(mock(classOf[RuntimeException]))
+    when(codeUidProvider.provideId("RTS 3.12")).thenThrow(mock(classOf[RuntimeException]))
 
     // Execute
     intercept[RuntimeException] {
@@ -61,7 +60,7 @@ class MarketDbTest extends HBaseMatchers {
   def testTradeRejectedForUidException() {
     // Init mocks
     when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
-    when(codeUidProvider.provideId("RIH")).thenThrow(new RuntimeException("Test UID exception"))
+    when(codeUidProvider.provideId("RTS 3.12")).thenThrow(new RuntimeException("Test UID exception"))
 
     // Execute
     intercept[RuntimeException] {
@@ -70,14 +69,14 @@ class MarketDbTest extends HBaseMatchers {
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
-    verify(codeUidProvider).provideId("RIH")
+    verify(codeUidProvider).provideId("RTS 3.12")
   }
 
   @Test
   def testTradeRejectedForInvalidUidWidth() {
     // Init mocks
     when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray("TooLong"))})
-    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
+    when(codeUidProvider.provideId("RTS 3.12")).thenReturn(Future {UniqueId("RTS 3.12", ByteArray(0, 0, 1))})
 
     // Execute
     intercept[RuntimeException] {
@@ -86,14 +85,14 @@ class MarketDbTest extends HBaseMatchers {
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
-    verify(codeUidProvider).provideId("RIH")
+    verify(codeUidProvider).provideId("RTS 3.12")
   }
 
   @Test
   def testTradeRejectedForHBaseFailure() {
     // Init mocks
     when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
-    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
+    when(codeUidProvider.provideId("RTS 3.12")).thenReturn(Future {UniqueId("RTS 3.12", ByteArray(0, 0, 1))})
     when(client.put(any(classOf[PutRequest]))).thenThrow(mock(classOf[HBaseException]))
 
     // Execute
@@ -103,14 +102,14 @@ class MarketDbTest extends HBaseMatchers {
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
-    verify(codeUidProvider).provideId("RIH")
+    verify(codeUidProvider).provideId("RTS 3.12")
   }
 
   @Test
   def testTradeRejectedForHBaseDeferredFailure() {
     // Init mocks
     when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
-    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
+    when(codeUidProvider.provideId("RTS 3.12")).thenReturn(Future {UniqueId("RTS 3.12", ByteArray(0, 0, 1))})
     when(client.put(any(classOf[PutRequest]))).thenReturn(Deferred.fromError[AnyRef](mock(classOf[HBaseException])))
 
     // Execute
@@ -120,7 +119,7 @@ class MarketDbTest extends HBaseMatchers {
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
-    verify(codeUidProvider).provideId("RIH")
+    verify(codeUidProvider).provideId("RTS 3.12")
   }
 
   @Test
@@ -133,7 +132,7 @@ class MarketDbTest extends HBaseMatchers {
 
     // Init mocks
     when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})
-    when(codeUidProvider.provideId("RIH")).thenReturn(Future {UniqueId("RIH", ByteArray(0, 0, 1))})
+    when(codeUidProvider.provideId("RTS 3.12")).thenReturn(Future {UniqueId("RTS 3.12", ByteArray(0, 0, 1))})
     when(client.put(putForRow(row))).thenReturn(Deferred.fromResult(new AnyRef()))
 
     // Execute
@@ -143,7 +142,7 @@ class MarketDbTest extends HBaseMatchers {
 
     // Verify
     verify(marketUidProvider).provideId("RTS")
-    verify(codeUidProvider).provideId("RIH")
+    verify(codeUidProvider).provideId("RTS 3.12")
     verify(client).put(putForRow(row))
   }
 
