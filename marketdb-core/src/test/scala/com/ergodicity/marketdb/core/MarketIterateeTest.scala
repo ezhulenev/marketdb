@@ -31,7 +31,7 @@ class MarketIterateeTest {
   val interval = now.withHourOfDay(0) to now.withHourOfDay(23)
 
   implicit val marketId = (_: Market) => ByteArray(0)
-  implicit val codeId = (_: Security) => ByteArray(1)
+  implicit val securityId = (_: Security) => ByteArray(1)
 
   @Test
   def testOpenScannerFailed() {
@@ -48,7 +48,7 @@ class MarketIterateeTest {
   @Test
   def testIterateOverScanner() {
     val Count = 100
-    val payloads = for (i <- 1 to Count) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, true);
     val scanner = ScannerMock(payloads)
 
     implicit val marketDb = mock(classOf[MarketDB])
@@ -66,7 +66,7 @@ class MarketIterateeTest {
   @Test
   def testIterationIsBroken() {
     val Count = 100
-    val payloads = for (i <- 1 to Count) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, true);
     val err = new IllegalStateException
     val scanner = ScannerMock(payloads, failOnBatch = Some(3, err))
 

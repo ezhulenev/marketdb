@@ -44,7 +44,7 @@ object TradeDataIteratee {
       val tradeId = split(5).toLong
       val nosystem = split(6) == "1" // Nosystem	0 - Рыночная сделка, 1 - Адресная сделка
 
-      TradePayload(RTS, security, decimal, amount, time, tradeId, nosystem)
+      TradePayload(RTS, security, tradeId, decimal, amount, time, nosystem)
     }
 
     def enumReader[A](r: BufferedReader, it: IterV[TradePayload, A]): IO[IterV[TradePayload, A]] = {

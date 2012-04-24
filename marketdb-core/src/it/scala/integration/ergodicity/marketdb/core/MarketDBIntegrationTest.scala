@@ -19,7 +19,7 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
   val market = Market("RTS")
   val security = Security("RTS 3.12")
   val time = new DateTime
-  val payload = TradePayload(market, security, BigDecimal("111"), 1, time, 11l, true)
+  val payload = TradePayload(market, security, 11l, BigDecimal("111"), 1, time, true)
 
   describe("MarketDB") {
 
@@ -40,8 +40,8 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
       val time1 = new DateTime(1970, 01, 01, 1, 0, 0, 0)
       val time2 = new DateTime(1970, 01, 01, 1, 0, 1, 0)
 
-      val payload1 = TradePayload(market, security, BigDecimal("111"), 1, time1, 111l, true)
-      val payload2 = TradePayload(market, security, BigDecimal("112"), 1, time2, 112l, true)
+      val payload1 = TradePayload(market, security, 111l, BigDecimal("111"), 1, time1, true)
+      val payload2 = TradePayload(market, security, 112l, BigDecimal("112"), 1, time2, true)
 
       val f1 = marketDB.addTrade(payload1)
       val f2 = marketDB.addTrade(payload2)
@@ -75,8 +75,8 @@ class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording
       val time1 = new DateTime(1970, 01, 05, 1, 0, 0, 0)
       val time2 = new DateTime(1970, 01, 05, 1, 0, 1, 0)
 
-      val payload1 = TradePayload(market, security, BigDecimal("111"), 1, time1, 111l, true)
-      val payload2 = TradePayload(market, security, BigDecimal("112"), 1, time2, 112l, true)
+      val payload1 = TradePayload(market, security, 111l, BigDecimal("111"), 1, time1, true)
+      val payload2 = TradePayload(market, security, 112l, BigDecimal("112"), 1, time2, true)
 
       val f1 = marketDB.addTrade(payload1)
       val f2 = marketDB.addTrade(payload2)

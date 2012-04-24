@@ -6,12 +6,12 @@ import com.ergodicity.marketdb.event._
 import org.joda.time.DateTime
 import com.ergodicity.marketdb.ByteArray
 
-class TradeEventModelTest extends Spec {
-  val log = LoggerFactory.getLogger(classOf[TradeEventModelTest])
+class TradeEventModelSpec extends Spec {
+  val log = LoggerFactory.getLogger(classOf[TradeEventModelSpec])
 
   val market = Market("Test")
   val security = Security("RTS 3.12")
-  val payload = TradePayload(market, security, BigDecimal("150000.50"), 1, new DateTime(), 11111l, false)
+  val payload = TradePayload(market, security, 11111l, BigDecimal("150000.50"), 1, new DateTime(), false)
 
   describe("Trade event sourced model") {
     it("should create DraftTrade") {
@@ -62,7 +62,5 @@ class TradeEventModelTest extends Spec {
         case _ => false
       })
     }
-
-
   }
 }

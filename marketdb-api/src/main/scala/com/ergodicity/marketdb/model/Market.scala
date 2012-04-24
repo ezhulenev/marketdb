@@ -2,6 +2,7 @@ package com.ergodicity.marketdb.model
 
 import sbinary.Operations._
 import sbinary.{DefaultProtocol, Output, Input, Format}
+import org.joda.time.DateTime
 
 case class Market(value: String)
 
@@ -22,6 +23,14 @@ object MarketProtocol extends DefaultProtocol {
 
     def writes(out: Output, security: Security) {
       write[String](out, security.isin)
+    }
+  }
+
+  implicit object DateTimeBinaryFormat extends Format[DateTime] {
+    def reads(in: Input) = new DateTime(read[Long](in))
+
+    def writes(out: Output, dateTime: DateTime) {
+      write[Long](out, dateTime.getMillis)
     }
   }
 

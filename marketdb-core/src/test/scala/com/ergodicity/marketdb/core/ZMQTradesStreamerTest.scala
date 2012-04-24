@@ -37,7 +37,7 @@ class ZMQTradesStreamerTest {
   val interval = time.withHourOfDay(0) to time.withHourOfDay(23)
 
   implicit val marketId = (_: Market) => ByteArray(0)
-  implicit val codeId = (_: Security) => ByteArray(1)
+  implicit val securityId = (_: Security) => ByteArray(1)
 
   val FinaglePort = 3333
   val PublishEndpoint = "inproc://publish-endpoint"
@@ -124,7 +124,7 @@ class ZMQTradesStreamerTest {
   @Test
   def testStreamingTrades() {
     val TradesCount = 1000
-    val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, true);
 
     val scanner = ScannerMock(payloads, 100)
     val marketDb = mock(classOf[MarketDB])
@@ -175,7 +175,7 @@ class ZMQTradesStreamerTest {
   }
 
   private def scannerFailed(failOn: Some[(Int, HBaseException)], BatchSize: Int, TradesExpected: Int) {
-    val payloads = for (i <- 1 to 100) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
+    val payloads = for (i <- 1 to 100) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, true);
     val scanner = ScannerMock(payloads, BatchSize, failOn);
 
     val marketDb = mock(classOf[MarketDB])

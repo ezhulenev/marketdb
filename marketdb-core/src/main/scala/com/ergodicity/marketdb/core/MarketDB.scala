@@ -19,7 +19,7 @@ case class TradePersisted(payload: TradePayload)
 object MarketDB {
   val log = LoggerFactory.getLogger(getClass.getName)
   val MarketIdWidth: Short = 1
-  val CodeIdWidth: Short = 3
+  val SecurityIdWidth: Short = 3
 
   var marketDB: MarketDB = null
   var runtime: RuntimeEnvironment = null
@@ -38,7 +38,7 @@ object MarketDB {
   }
 }
 
-class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvider: UIDProvider,
+class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdProvider: UIDProvider,
                val tradesTable: String, serviceBuilders: Seq[MarketDB => MarketService] = Seq()) extends Service {
 
   val log = LoggerFactory.getLogger(classOf[MarketDB])
@@ -63,11 +63,11 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
   def scan(market: Market, security: Security, interval: Interval) = {
     log.info("Scan marketDB for market="+market.value+"; Security="+security.isin+"; Interval="+interval)
 
-    // Get Unique Ids for market and code
+    // Get Unique Ids for market and security
     val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(market.value)}
-    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(security.isin)}
+    val securityUid = Stats.timeFutureMillis("get_security_uid") {securityIdProvider.provideId(security.isin)}
 
-    (marketUid join codeUid) map {
+    (marketUid join securityUid) map {
       tuple =>
         val startKey = TradeRow(tuple._1.id, tuple._2.id, interval.getStart)
         val stopKey = TradeRow(tuple._1.id, tuple._2.id, interval.getEnd) ++ ByteArray(0)
@@ -84,11 +84,11 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, codeIdProvide
 
     val draftTrade: DraftTrade = Trade.loadFromHistory(Seq(TradeReceived(payload)))
 
-    // Get Unique Ids for market and code
+    // Get Unique Ids for market and security
     val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(payload.market.value)}
-    val codeUid = Stats.timeFutureMillis("get_code_uid") {codeIdProvider.provideId(payload.security.isin)}
+    val securityUid = Stats.timeFutureMillis("get_security_uid") {securityIdProvider.provideId(payload.security.isin)}
 
-    val binaryTradeReaction: Future[Reaction[BinaryTrade]] = (marketUid join codeUid) map {
+    val binaryTradeReaction: Future[Reaction[BinaryTrade]] = (marketUid join securityUid) map {
       tuple =>
         draftTrade.enrichTrade(tuple._1.id, tuple._2.id).flatMap(_.serializeTrade()).reaction
     }

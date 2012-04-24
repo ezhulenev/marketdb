@@ -19,7 +19,7 @@ class StreamProtocolSpec extends Spec {
     val security = Security("RIM 3.12")
 
     it("should serialize Payload") {
-      val mess = Payload(TradePayload(market, security, BigDecimal(1), 1, new DateTime, 1, false))
+      val mess = Payload(TradePayload(market, security, 1, BigDecimal(1), 1, new DateTime, false))
 
       val bytes = toByteArray[MarketStreamPayload](mess)
       val fromBytes = fromByteArray[MarketStreamPayload](bytes)

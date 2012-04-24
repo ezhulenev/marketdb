@@ -24,15 +24,15 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
 
     import MarketDB._
     val marketUIDProvider = new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Market"), MarketIdWidth)
-    val codeUIDProvider =  new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Code"), CodeIdWidth)
+    val securityUIDProvider =  new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Security"), SecurityIdWidth)
 
     // Add statistics for UID caching
     Stats.addGauge("marketUid_cache_hits") {marketUIDProvider.cacheHits}
     Stats.addGauge("marketUid_cache_misses") {marketUIDProvider.cacheMisses}
-    Stats.addGauge("codeUid_cache_hits") {codeUIDProvider.cacheHits}
-    Stats.addGauge("codeUid_cache_misses") {codeUIDProvider.cacheMisses}
+    Stats.addGauge("securityUid_cache_hits") {securityUIDProvider .cacheHits}
+    Stats.addGauge("securityUid_cache_misses") {securityUIDProvider .cacheMisses}
 
-    new MarketDB(client, marketUIDProvider, codeUIDProvider, tradesTable, services)
+    new MarketDB(client, marketUIDProvider, securityUIDProvider , tradesTable, services)
   }
 }
 

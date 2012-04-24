@@ -7,7 +7,6 @@ import com.ergodicity.zeromq.{Client, Connect}
 import org.joda.time.DateTime
 import org.scala_tools.time.Implicits._
 import com.ergodicity.zeromq.SocketType._
-import com.ergodicity.marketdb.model.TradeProtocol._
 import org.zeromq.ZMQ
 import com.twitter.util.Future
 import org.mockito.Matchers._
@@ -33,8 +32,9 @@ class ZMQLoaderSpec extends Spec {
       loader.start()
       val client = Client(Pub, options = Connect("tcp://localhost:30000") :: Nil)(ZMQ.context(1))
 
-      val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, security, BigDecimal("111"), 1, time, i, true);
+      val payloads = for (i <- 1 to TradesCount) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, true);
 
+      import com.ergodicity.marketdb.model.TradeProtocol._
       client.send(payloads.toList)
 
       // Let all trades to be processed

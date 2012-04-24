@@ -58,7 +58,7 @@ class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoin
 
   // Finagle Service implementation
   def apply(request: MarketStreamReq) = request match {
-    case OpenStream(market, code, interval) => Future(openStream(market, code, interval))
+    case OpenStream(market, security, interval) => Future(openStream(market, security, interval))
     case CloseStream(stream) => Future(closeStream(stream))
     case unknown =>
       log.error("Unknown MarketStreamReq: " + unknown);

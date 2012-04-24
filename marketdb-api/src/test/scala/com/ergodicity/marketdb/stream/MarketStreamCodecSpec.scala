@@ -20,7 +20,7 @@ class MarketStreamCodecSpec extends Spec {
 
       val service = new Service[MarketStreamReq, MarketStreamRep] {
         def apply(request: MarketStreamReq) = request match {
-          case OpenStream(market, code, interval) => Future(StreamOpened(MarketStream("111")))
+          case OpenStream(market, security, interval) => Future(StreamOpened(MarketStream("111")))
           case CloseStream(MarketStream(id)) => Future(StreamClosed())
         }
       }
