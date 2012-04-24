@@ -14,7 +14,7 @@ import scala.Predef._
 import com.ergodicity.marketdb.core.{TradesTimeSeries, MarketIteratee, MarketDB}
 
 class MarketDbTradesIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[MarketDbTradesIntegrationTest])
+  override val log = LoggerFactory.getLogger(classOf[MarketDbOrdersIntegrationTest])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")
@@ -51,7 +51,7 @@ class MarketDbTradesIntegrationTest extends Spec with GivenWhenThen with TimeRec
 
       // -- Verify two rows for 1970 Jan 1
       val interval = new DateTime(1970, 01, 01, 0, 0, 0, 0) to new DateTime(1970, 01, 01, 23, 0, 0, 0)
-      val scanner = marketDB.scan(market, security, interval)()
+      val scanner = marketDB.scanTrades(market, security, interval)()
 
       val rows = scanner.nextRows().joinUninterruptibly()
       log.info("ROWS Jan 1: " + rows)
@@ -101,7 +101,7 @@ class MarketDbTradesIntegrationTest extends Spec with GivenWhenThen with TimeRec
     it("should return null if no trades exists") {
       // -- Verify two rows for 1970 Feb 1
       val interval = new DateTime(1970, 02, 01, 0, 0, 0, 0) to new DateTime(1970, 02, 01, 23, 0, 0, 0)
-      val scanner = marketDB.scan(market, security, interval)()
+      val scanner = marketDB.scanTrades(market, security, interval)()
 
       val rows = scanner.nextRows().joinUninterruptibly()
       log.info("ROWS Feb1 1: " + rows)

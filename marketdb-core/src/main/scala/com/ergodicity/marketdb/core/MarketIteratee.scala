@@ -87,7 +87,7 @@ sealed trait MarketTimeSeries[E] {
 
 case class TradesTimeSeries(market: Market, security: Security, interval: Interval)
                            (implicit marketDb: MarketDB) extends MarketTimeSeries[TradePayload] {
-  def openScanner = marketDb.scan(market, security, interval)
+  def openScanner = marketDb.scanTrades(market, security, interval)
 }
 
 object MarketIteratee {

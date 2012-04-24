@@ -62,8 +62,8 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
     log.info("marketDB stopped")
   }
   
-  def scan(market: Market, security: Security, interval: Interval) = {
-    log.info("Scan marketDB for market="+market.value+"; Security="+security.isin+"; Interval="+interval)
+  def scanTrades(market: Market, security: Security, interval: Interval) = {
+    log.info("Scan marketDB Trades for market="+market.value+"; Security="+security.isin+"; Interval="+interval)
 
     // Get Unique Ids for market and security
     val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(market.value)}
@@ -80,6 +80,27 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
         scanner
     }
   }
+
+  def scanOrders(market: Market, security: Security, interval: Interval) = {
+    log.info("Scan marketDB Orders for market="+market.value+"; Security="+security.isin+"; Interval="+interval)
+
+    // Get Unique Ids for market and security
+    val marketUid = Stats.timeFutureMillis("get_market_uid") {marketIdProvider.provideId(market.value)}
+    val securityUid = Stats.timeFutureMillis("get_security_uid") {securityIdProvider.provideId(security.isin)}
+
+    (marketUid join securityUid) map {
+      tuple =>
+        val startKey = OrderRow(tuple._1.id, tuple._2.id, interval.getStart)
+        val stopKey = OrderRow(tuple._1.id, tuple._2.id, interval.getEnd) ++ ByteArray(0)
+
+        val scanner = client.newScanner(ByteArray(ordersTable).toArray)
+        scanner.setStartKey(startKey.toArray)
+        scanner.setStopKey(stopKey.toArray)
+        scanner
+    }
+  }
+
+
 
   def addOrder(payload: OrderPayload) = {
     log.trace("Add order: " + payload)

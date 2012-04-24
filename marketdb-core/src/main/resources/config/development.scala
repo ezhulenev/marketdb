@@ -5,7 +5,7 @@ new MarketDBConfig {
   admin.httpPort = 9000
 
   val kestrelLoaderService = (marketDB: MarketDB) => {
-    new KestrelLoader(marketDB, KestrelConfig(Seq("localhost:22133"), "trades", 30))
+    new KestrelLoader(marketDB, KestrelConfig(Seq("localhost:22133"), "trades", "orders", 30))
   }
 
   val zmqLoadedService = (marketDB: MarketDB) => {

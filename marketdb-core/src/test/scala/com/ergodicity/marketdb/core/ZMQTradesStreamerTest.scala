@@ -61,7 +61,7 @@ class ZMQTradesStreamerTest {
   def testOpenAndCloseStream() {
     val scanner = mock(classOf[Scanner])
     val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
+    when(marketDb.scanTrades(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
 
     val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
     tradesStreamer.start()
@@ -128,7 +128,7 @@ class ZMQTradesStreamerTest {
 
     val scanner = ScannerMock(payloads, 100)
     val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
+    when(marketDb.scanTrades(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
 
     val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
     tradesStreamer.start()
@@ -163,7 +163,7 @@ class ZMQTradesStreamerTest {
     assert(tradesNbr == TradesCount, "Expected = "+TradesCount+" actual = "+tradesNbr)
 
     // Verify
-    verify(marketDb, only()).scan(market, security, interval)
+    verify(marketDb, only()).scanTrades(market, security, interval)
     verify(scanner).close();
 
     // Close all
@@ -179,7 +179,7 @@ class ZMQTradesStreamerTest {
     val scanner = ScannerMock(payloads, BatchSize, failOn);
 
     val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
+    when(marketDb.scanTrades(any[Market], any[Security], any[Interval])).thenReturn(Future(scanner))
 
     val tradesStreamer = new ZMQTradesStreamer(marketDb, FinaglePort, PublishEndpoint, Heartbeat)
     tradesStreamer.start()
@@ -212,7 +212,7 @@ class ZMQTradesStreamerTest {
     assert(tradesNbr == TradesExpected, "Expected: " + TradesExpected + "; actually got: " + tradesNbr)
 
     // Verify
-    verify(marketDb, only()).scan(market, security, interval)
+    verify(marketDb, only()).scanTrades(market, security, interval)
     verify(scanner).close();
 
     // Close all

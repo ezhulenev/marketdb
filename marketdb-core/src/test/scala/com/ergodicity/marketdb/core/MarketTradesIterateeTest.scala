@@ -36,7 +36,7 @@ class MarketTradesIterateeTest {
   @Test
   def testOpenScannerFailed() {
     implicit val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any(), any(), any())).thenThrow(new IllegalStateException)
+    when(marketDb.scanTrades(any(), any(), any())).thenThrow(new IllegalStateException)
 
     val trades = TradesTimeSeries(market, security, interval)
     import org.scalatest.Assertions._
@@ -52,7 +52,7 @@ class MarketTradesIterateeTest {
     val scanner = ScannerMock(payloads)
 
     implicit val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any(), any(), any())).thenReturn(Future(scanner))
+    when(marketDb.scanTrades(any(), any(), any())).thenReturn(Future(scanner))
 
     val trades = TradesTimeSeries(market, security, interval)
     val iterv = trades.enumerate(counter[TradePayload])
@@ -71,7 +71,7 @@ class MarketTradesIterateeTest {
     val scanner = ScannerMock(payloads, failOnBatch = Some(3, err))
 
     implicit val marketDb = mock(classOf[MarketDB])
-    when(marketDb.scan(any(), any(), any())).thenReturn(Future(scanner))
+    when(marketDb.scanTrades(any(), any(), any())).thenReturn(Future(scanner))
 
     val trades = TradesTimeSeries(market, security, interval)
     trades.enumerate(counter[TradePayload]).map(_.run) onSuccess {_ =>
