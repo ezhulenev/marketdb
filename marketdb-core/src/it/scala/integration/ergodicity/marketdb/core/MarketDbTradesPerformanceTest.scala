@@ -12,8 +12,8 @@ import integration.ergodicity.marketdb.TimeRecording
 import com.ergodicity.marketdb.core.{TradesTimeSeries, MarketIteratee, MarketDB}
 
 
-class MarketDBPerformanceTest extends Spec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[MarketDBIntegrationTest])
+class MarketDbTradesPerformanceTest extends Spec with GivenWhenThen with TimeRecording {
+  override val log = LoggerFactory.getLogger(classOf[MarketDbTradesIntegrationTest])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")

@@ -13,8 +13,8 @@ import collection.JavaConversions
 import scala.Predef._
 import com.ergodicity.marketdb.core.{TradesTimeSeries, MarketIteratee, MarketDB}
 
-class MarketDBIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[MarketDBIntegrationTest])
+class MarketDbTradesIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
+  override val log = LoggerFactory.getLogger(classOf[MarketDbTradesIntegrationTest])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")
