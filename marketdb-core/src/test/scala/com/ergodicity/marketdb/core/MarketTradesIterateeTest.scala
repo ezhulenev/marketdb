@@ -20,8 +20,8 @@ import org.hbase.async.Scanner
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[Scanner]))
-class MarketIterateeTest {
-  val log = LoggerFactory.getLogger(classOf[MarketIterateeTest])
+class MarketTradesIterateeTest {
+  val log = LoggerFactory.getLogger(classOf[MarketTradesIterateeTest])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")

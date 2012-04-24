@@ -12,6 +12,7 @@ test -d "$HBASE_HOME" || {
 
 
 TRADES_TABLE=${TRADES_TABLE-'market-trades'}
+ORDERS_TABLE=${ORDERS_TABLE-'market-orders'}
 UID_TABLE=${UID_TABLE-'market-uid'}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
@@ -19,6 +20,7 @@ COMPRESSION=${COMPRESSION-'LZO'}
 
 echo "Going to create tables: "
 echo " - Trades table: $TRADES_TABLE"
+echo " - Orders table: $ORDERS_TABLE"
 echo " - UID table:    $UID_TABLE"
 
 # HBase scripts also use a variable named `HBASE_HOME', and having this
@@ -33,4 +35,7 @@ create '$UID_TABLE',
 
 create '$TRADES_TABLE',
   {NAME => 'id', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+
+create '$ORDERS_TABLE',
+    {NAME => 'id', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
 EOF

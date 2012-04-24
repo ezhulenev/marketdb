@@ -12,8 +12,8 @@ import com.twitter.util.Future
 import org.mockito.Matchers._
 import com.ergodicity.marketdb.model._
 
-class ZMQLoaderSpec extends Spec {
-  val log = LoggerFactory.getLogger(classOf[ZMQLoaderSpec])
+class ZMQTradesLoaderSpec extends Spec {
+  val log = LoggerFactory.getLogger(classOf[ZMQTradesLoaderSpec])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")

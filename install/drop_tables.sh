@@ -12,10 +12,12 @@ test -d "$HBASE_HOME" || {
 
 
 TRADES_TABLE=${TRADES_TABLE-'market-trades'}
+ORDERS_TABLE=${ORDERS_TABLE-'market-orders'}
 UID_TABLE=${UID_TABLE-'market-uid'}
 
 echo "Going to drop tables: "
 echo " - Trades table: $TRADES_TABLE"
+echo " - Orders table: $ORDERS_TABLE"
 echo " - UID table:    $UID_TABLE"
 
 # HBase scripts also use a variable named `HBASE_HOME', and having this
@@ -29,4 +31,7 @@ drop '$UID_TABLE'
 
 disable '$TRADES_TABLE'
 drop '$TRADES_TABLE'
+
+disable '$ORDERS_TABLE'
+drop '$ORDERS_TABLE'
 EOF

@@ -13,6 +13,7 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
 
   var zookeeperQuorum = "127.0.0.1"
   var tradesTable = "market-trades"
+  var ordersTable = "market-orders"
   var uidTable = "market-uid"
   
   var services: Seq[MarketDB => MarketService] = Seq()
@@ -32,7 +33,7 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
     Stats.addGauge("securityUid_cache_hits") {securityUIDProvider .cacheHits}
     Stats.addGauge("securityUid_cache_misses") {securityUIDProvider .cacheMisses}
 
-    new MarketDB(client, marketUIDProvider, securityUIDProvider , tradesTable, services)
+    new MarketDB(client, marketUIDProvider, securityUIDProvider , tradesTable, ordersTable, services)
   }
 }
 

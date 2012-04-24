@@ -21,10 +21,11 @@ import org.scalatest.Assertions._
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[HBaseClient], classOf[RowLock], classOf[Deferred[_]]))
-class MarketDbTest extends HBaseMatchers {
-  val log = LoggerFactory.getLogger(classOf[MarketDbTest]);
+class MarketDbTradesTest extends HBaseMatchers {
+  val log = LoggerFactory.getLogger(classOf[MarketDbOrdersTest]);
 
   val tradesTable = "TRADES"
+  val ordersTable = "ORDERS"
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")
@@ -38,7 +39,7 @@ class MarketDbTest extends HBaseMatchers {
   val marketUidProvider = mock(classOf[UIDProvider])
   val securityUidProvider = mock(classOf[UIDProvider])
 
-  val marketDb = new MarketDB(client, marketUidProvider, securityUidProvider, tradesTable)
+  val marketDb = new MarketDB(client, marketUidProvider, securityUidProvider, tradesTable, ordersTable)
 
 
   @Test
