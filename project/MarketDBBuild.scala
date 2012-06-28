@@ -36,6 +36,13 @@ object MarketDBBuild extends Build {
       Seq(
         jarName in assembly <<= (name, version) { (name, version) => "marketdb-" + version + ".jar" } ,
         test in assembly := {},
+        mergeStrategy in assembly <<= (mergeStrategy in assembly) {
+          (old) => {
+            case "MANIFEST.MF" => MergeStrategy.discard
+            case x => old(x)
+          }
+        },
+
         libraryDependencies ++= Dependencies.core,
         unmanagedBase <<= baseDirectory { base => base / ".." / "lib" }
       )
