@@ -7,11 +7,12 @@ import org.slf4j.LoggerFactory
 import org.jboss.netty.buffer.ChannelBuffers
 import com.twitter.finagle.kestrel.Client
 import com.twitter.ostrich.stats.Stats
-import com.twitter.concurrent.Offer
 import java.util.concurrent.atomic.AtomicReference
 import sbinary.{EOF=>No,_}
 import sbinary.Operations._
 import com.ergodicity.zeromq.{Serializer, Client => ZMQClient}
+import com.twitter.util.Future
+import com.twitter.concurrent.{Tx, Offer}
 
 
 case class LoaderReport[E](count: Int, list: List[E])
@@ -113,14 +114,16 @@ object Iteratees {
 }
 
 object OfferOnce {
+  
   def apply[A](value: A): Offer[A] = new Offer[A] {
     val ref = new AtomicReference[Option[A]](Some(value))
 
-    def objects = Seq()
+    /*def objects = Seq()
 
-    def poll() = ref.getAndSet(None).map(() => _)
+    def poll() = ref.getAndSet(None).map(() => _)*/
 
-    def enqueue(setter: this.type#Setter) = null
+    def prepare() = ref.getAndSet(None) map {value =>
+      Future.value(Tx.const(value))
+    } getOrElse Future.never
   }
-  
 }

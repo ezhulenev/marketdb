@@ -5,11 +5,8 @@ import org.hbase.async._
 import scalaz._
 import Scalaz._
 import org.slf4j.LoggerFactory
-import com.ergodicity.marketdb.uid._
 import java.util.ArrayList
 import com.ergodicity.marketdb.AsyncHBase._
-import scalaz.Digit._0
-import com.twitter.util.FuturePool._
 import java.util.concurrent.Executors
 import com.twitter.util.{FuturePool, Promise, Future}
 import com.ergodicity.marketdb.{OopsException, ByteArray, Oops}
