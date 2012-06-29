@@ -93,17 +93,18 @@ object MarketDBBuild extends Build {
     test in assembly := {},
 
     mergeStrategy in assembly := {
-      case "reference.conf" =>
-        MergeStrategy.concat
       case PathList(ps @ _*) if isReadme(ps.last) || isLicenseFile(ps.last) =>
         MergeStrategy.rename
       case PathList("META-INF", xs @ _*) =>
         (xs.map {_.toLowerCase}) match {
-          case list @ (head :: tail) if (tail.last == "manifest.mf") => MergeStrategy.discard
-          case list @ (head :: tail) if (tail.last == "notice.txt") => MergeStrategy.discard
-          case "plexus" :: tail => MergeStrategy.discard
-          case "maven" :: tail => MergeStrategy.discard
-          case _ => MergeStrategy.deduplicate
+          case ("manifest.mf" :: Nil) => MergeStrategy.discard
+          case list @ (head :: tail) if (head.last == "manifest.mf") => MergeStrategy.discard
+          case list @ (head :: tail) if (head.last == "notice.txt") => MergeStrategy.discard
+          case "plexus" :: _ => MergeStrategy.discard
+          case "maven" :: _ => MergeStrategy.discard
+          case e =>
+            System.out.println("EBAKA = "+e)
+            MergeStrategy.deduplicate
         }
       case _ => MergeStrategy.deduplicate
     }
