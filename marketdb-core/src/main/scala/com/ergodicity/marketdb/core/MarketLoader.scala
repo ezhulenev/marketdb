@@ -121,7 +121,7 @@ class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends Marke
               }
             }
           } finally {
-            msg.ack() // if we don't do this, no more msgs will come to us
+            msg.ack.sync() // if we don't do this, no more msgs will come to us
           }
       }
     }
@@ -185,7 +185,7 @@ class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends Marke
               }
             }
           } finally {
-            msg.ack() // if we don't do this, no more msgs will come to us
+            msg.ack.sync() // if we don't do this, no more msgs will come to us
           }
       }
     }

@@ -22,9 +22,10 @@ object MarketDBBuild extends Build {
   lazy val marketdbApi = Project(
     id = "marketdb-api",
     base = file("marketdb-api"),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ graphSettings ++
-      Seq(libraryDependencies ++= Dependencies.api) ++
-      Seq((unmanagedBase <<= baseDirectory { base => base / ".." / "lib" }))
+    settings = Project.defaultSettings ++ repositoriesSetting ++ graphSettings ++ unmanagedSettings ++ Seq(
+      scalacOptions += "-deprecation",
+      libraryDependencies ++= Dependencies.api
+    )
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
@@ -32,20 +33,11 @@ object MarketDBBuild extends Build {
     id = "marketdb-core",
     base = file("marketdb-core"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ assemblySettings ++ graphSettings ++
-      Seq(
-        jarName in assembly <<= (name, version) { (name, version) => "marketdb-" + version + ".jar" } ,
-        test in assembly := {},
-        mergeStrategy in assembly <<= (mergeStrategy in assembly) {
-          (old) => {
-            case "MANIFEST.MF" => MergeStrategy.discard
-            case x => old(x)
-          }
-        },
-
-        libraryDependencies ++= Dependencies.core,
-        unmanagedBase <<= baseDirectory { base => base / ".." / "lib" }
-      )
+    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++
+      assemblySettings ++ extAssemblySettings ++ graphSettings ++ Seq(
+      scalacOptions += "-deprecation",
+      libraryDependencies ++= Dependencies.core
+    )
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
@@ -53,9 +45,10 @@ object MarketDBBuild extends Build {
     id = "marketdb-loader",
     base = file("marketdb-loader"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ graphSettings ++
-      Seq(libraryDependencies ++= Dependencies.loader) ++
-      Seq((unmanagedBase <<= baseDirectory { base => base / ".." / "lib" }))
+    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ graphSettings ++ Seq(
+      scalacOptions += "-deprecation",
+      libraryDependencies ++= Dependencies.loader
+    )
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
@@ -70,6 +63,54 @@ object MarketDBBuild extends Build {
     resolvers += "Typesafe Repository ide-2.9" at "http://repo.typesafe.com/typesafe/simple/ide-2.9/",
     resolvers += "Twitter Repository" at "http://maven.twttr.com/",
     resolvers += "Akka Repository" at "http://akka.io/snapshots/"
+  )
+
+  private val LicenseFile = """(license|licence|notice|copying)([.]\w+)?$""".r
+  private def isLicenseFile(fileName: String): Boolean =
+    fileName.toLowerCase match {
+      case LicenseFile(_, ext) if ext != ".class" => true // DISLIKE
+      case _ => false
+    }
+
+  private val ReadMe = """(readme)([.]\w+)?$""".r
+  private def isReadme(fileName: String): Boolean =
+    fileName.toLowerCase match {
+      case ReadMe(_, ext) if ext != ".class" => true
+      case _ => false
+    }
+
+  private object PathList {
+    private val sysFileSep = System.getProperty("file.separator")
+    def unapplySeq(path: String): Option[List[String]] = {
+      val split = path.split(if (sysFileSep.equals( """\""")) """\\""" else sysFileSep)
+      if (split.size == 0) None
+      else Some(split.toList)
+    }
+  }
+
+  lazy val extAssemblySettings = Seq(
+    jarName in assembly <<= (name, version) { (name, version) => "marketdb-" + version + ".jar" } ,
+    test in assembly := {},
+
+    mergeStrategy in assembly := {
+      case "reference.conf" =>
+        MergeStrategy.concat
+      case PathList(ps @ _*) if isReadme(ps.last) || isLicenseFile(ps.last) =>
+        MergeStrategy.rename
+      case PathList("META-INF", xs @ _*) =>
+        (xs.map {_.toLowerCase}) match {
+          case list @ (head :: tail) if (tail.last == "manifest.mf") => MergeStrategy.discard
+          case list @ (head :: tail) if (tail.last == "notice.txt") => MergeStrategy.discard
+          case "plexus" :: tail => MergeStrategy.discard
+          case "maven" :: tail => MergeStrategy.discard
+          case _ => MergeStrategy.deduplicate
+        }
+      case _ => MergeStrategy.deduplicate
+    }
+  )
+
+  lazy val unmanagedSettings = Seq(
+    (unmanagedBase <<= baseDirectory { base => base / ".." / "lib" })
   )
 }
 

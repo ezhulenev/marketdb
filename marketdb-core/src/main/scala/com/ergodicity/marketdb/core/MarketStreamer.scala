@@ -135,7 +135,7 @@ class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoin
 
   private def closeStream(stream: MarketStream) = {
     log.info("Close trades stream: "+stream)
-    tradeTimeSeries.single().get(stream.id) map {_()}
+    tradeTimeSeries.single().get(stream.id) map {_.sync()}
     StreamClosed()
   }
 
@@ -151,7 +151,7 @@ class ZMQTradesStreamer(marketDb: MarketDB, val finaglePort: Int, publishEndpoin
   def shutdown() {
     log.info("Shutdown ZMQTradesStreamer server")
     // Close all alive streams
-    tradeTimeSeries.single() foreach {_._2()}
+    tradeTimeSeries.single() foreach {_._2.sync()}
     // Shutdown heartbeat
     heartbeat.stop()
     // Shutdown forwarder
