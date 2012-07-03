@@ -102,9 +102,7 @@ object MarketDBBuild extends Build {
           case list @ (head :: tail) if (head.last == "notice.txt") => MergeStrategy.discard
           case "plexus" :: _ => MergeStrategy.discard
           case "maven" :: _ => MergeStrategy.discard
-          case e =>
-            System.out.println("EBAKA = "+e)
-            MergeStrategy.deduplicate
+          case e => MergeStrategy.deduplicate
         }
       case _ => MergeStrategy.deduplicate
     }
