@@ -22,7 +22,7 @@ object MarketDBBuild extends Build {
   lazy val marketdbApi = Project(
     id = "marketdb-api",
     base = file("marketdb-api"),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ graphSettings ++ unmanagedSettings ++ Seq(
+    settings = Project.defaultSettings ++ repositoriesSetting ++ graphSettings ++ unmanagedSettings ++ scala.Seq[sbt.Project.Setting[_]](
       scalacOptions += "-deprecation",
       libraryDependencies ++= Dependencies.api
     )
@@ -34,7 +34,7 @@ object MarketDBBuild extends Build {
     base = file("marketdb-core"),
     dependencies = Seq(marketdbApi),
     settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++
-      assemblySettings ++ extAssemblySettings ++ graphSettings ++ Seq(
+      assemblySettings ++ extAssemblySettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
       scalacOptions += "-deprecation",
       libraryDependencies ++= Dependencies.core
     )
@@ -45,7 +45,7 @@ object MarketDBBuild extends Build {
     id = "marketdb-loader",
     base = file("marketdb-loader"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ graphSettings ++ Seq(
+    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
       scalacOptions += "-deprecation",
       libraryDependencies ++= Dependencies.loader
     )
@@ -88,7 +88,7 @@ object MarketDBBuild extends Build {
     }
   }
 
-  lazy val extAssemblySettings = Seq(
+  lazy val extAssemblySettings = scala.Seq[sbt.Project.Setting[_]](
     jarName in assembly <<= (name, version) { (name, version) => "marketdb-" + version + ".jar" } ,
     test in assembly := {},
 
@@ -110,7 +110,7 @@ object MarketDBBuild extends Build {
     }
   )
 
-  lazy val unmanagedSettings = Seq(
+  lazy val unmanagedSettings = scala.Seq[sbt.Project.Setting[_]](
     (unmanagedBase <<= baseDirectory { base => base / ".." / "lib" })
   )
 }
