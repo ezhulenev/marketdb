@@ -98,8 +98,8 @@ object MarketDBBuild extends Build {
       case PathList("META-INF", xs @ _*) =>
         (xs.map {_.toLowerCase}) match {
           case ("manifest.mf" :: Nil) => MergeStrategy.discard
-          case list @ (head :: tail) if (tail.last == "manifest.mf") => MergeStrategy.discard
-          case list @ (head :: tail) if (tail.last == "notice.txt") => MergeStrategy.discard
+          case list @ (head :: tail) if (list.reverse.head == "manifest.mf") => MergeStrategy.discard
+          case list @ (head :: tail) if (list.reverse.head == "notice.txt") => MergeStrategy.discard
           case "plexus" :: _ => MergeStrategy.discard
           case "maven" :: _ => MergeStrategy.discard
           case e => MergeStrategy.deduplicate
