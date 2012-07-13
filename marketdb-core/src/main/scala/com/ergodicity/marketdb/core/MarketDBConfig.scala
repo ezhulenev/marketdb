@@ -20,6 +20,7 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
 
   def apply(runtime: RuntimeEnvironment) = {
     log.info("Build new marketDB configuration")
+    log.debug("ZooKeeper quorum = " + zookeeperQuorum + "; Trades table = " + tradesTable + "; Orders table = " + ordersTable + "; UID table = " + uidTable)
 
     val client = new HBaseClient(zookeeperQuorum)
 
