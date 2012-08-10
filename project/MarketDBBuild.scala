@@ -116,14 +116,14 @@ object MarketDBBuild extends Build {
 object Dependencies {
   import Dependency._
 
-  val api = Seq(zeromq, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
+  val api = Seq(finagleCore, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
 
-  val core = Seq(zeromq, ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, scalaz, cglib, jodaTime, jodaConvert) ++
+  val core = Seq(ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, scalaz, cglib, jodaTime, jodaConvert) ++
     Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.scalacheck, Test.junitInterface) ++
     Seq(asyncHBase, stumbleuponAsync, zookeeper)
 
 
-  val loader = Seq(zeromq, ostrich, finagleCore, finagleKestrel, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz) ++
+  val loader = Seq(ostrich, finagleCore, finagleKestrel, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz) ++
     Seq(Test.scalatest, Test.scalacheck, Test.mockito)
 }
 
@@ -158,10 +158,6 @@ object Dependency {
     val AsyncHBase              = "1.3.0"
     val StumbleuponAsync        = "1.2.0"
     val Zookeeper               =  "3.4.3"
-
-    // Ergodicity dependencies
-    val Zeromq       = "0.1-SNAPSHOT"
-
   }
 
   // Compile
@@ -180,7 +176,6 @@ object Dependency {
   val scalaTime         = "org.scala-tools.time"             %% "time"                   % V.ScalaTime intransitive()
   val httpClient        = "commons-httpclient"                % "commons-httpclient"     % V.HttpClient
   val scalaIO           = "com.github.scala-incubator.io"    %% "scala-io-core"          % V.ScalaIO
-  val zeromq            = "com.ergodicity"                   %% "zeromq"                 % V.Zeromq
 
   val asyncHBase        = "org.hbase"                        % "asynchbase"              % V.AsyncHBase intransitive()
   val stumbleuponAsync  = "com.stumbleupon"                   % "async"                  % V.StumbleuponAsync intransitive()

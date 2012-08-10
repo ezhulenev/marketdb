@@ -12,8 +12,6 @@ import util.{BatchSettings, LoaderReport}
 import com.twitter.finagle.kestrel.protocol.Kestrel
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.kestrel.Client
-import com.ergodicity.zeromq.{Connect, Client => ZMQClient}
-import org.zeromq.ZMQ
 import com.ergodicity.marketdb.model.TradeProtocol._
 
 abstract class LoaderConfig extends ServerConfig[Loader[_]] {
@@ -34,23 +32,12 @@ abstract class LoaderConfig extends ServerConfig[Loader[_]] {
       System.exit(1)
     }
 
-    val from = Format.parseDateTime(runtime.arguments("from"));
-    val until = Format.parseDateTime(runtime.arguments("until"));
+    val from = Format.parseDateTime(runtime.arguments("from"))
+    val until = Format.parseDateTime(runtime.arguments("until"))
 
     new Loader(from to until, loader, i)
   }
 }
-
-abstract class ZMQLoaderConfig(endpoint: String, batchSettings: BatchSettings) extends LoaderConfig {
-  implicit def implicitBatchSettings = batchSettings
-  
-  import com.ergodicity.zeromq.SocketType.Pub
-
-  implicit val context = ZMQ.context(1)
-  val client = ZMQClient(Pub, options = Connect(endpoint) :: Nil)
-  val i = zmqBulkLoader[TradePayload](client)
-}
-
 
 abstract class KestrelLoaderConfig(kestrel: KestrelSettings, batchSettings: BatchSettings) extends LoaderConfig {
   assertKestrelRunning(kestrel)

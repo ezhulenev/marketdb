@@ -12,11 +12,7 @@ new MarketDBConfig {
     new KestrelLoader(marketDB, KestrelConfig(Seq("localhost:22133"), "trades", "orders", 30))
   }
 
-  val zmqLoadedService = (marketDB: MarketDB) => {
-    new ZMQLoader(marketDB, "tcp://*:30000")
-  }
-
-  services = Seq(kestrelLoaderService, zmqLoadedService)
+  services = Seq(kestrelLoaderService)
 
   admin.statsNodes = new StatsConfig {
     reporters = new JsonStatsLoggerConfig {

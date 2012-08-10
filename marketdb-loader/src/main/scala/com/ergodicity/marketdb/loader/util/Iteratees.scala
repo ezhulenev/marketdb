@@ -10,7 +10,6 @@ import com.twitter.ostrich.stats.Stats
 import java.util.concurrent.atomic.AtomicReference
 import sbinary.{EOF=>No,_}
 import sbinary.Operations._
-import com.ergodicity.zeromq.{Serializer, Client => ZMQClient}
 import com.twitter.util.Future
 import com.twitter.concurrent.{Tx, Offer}
 
@@ -48,13 +47,6 @@ object Iteratees {
     }
   }
 
-  def zmqBulkLoader[E](client: ZMQClient)
-                      (implicit serializer: Serializer[List[E]], settings: BatchSettings): IterV[E, LoaderReport[E]] = {
-    bulkLoader(settings) {list: List[E] =>
-      client.send(list)
-    }
-  }
-  
   private def bulkLoader[E](settings: BatchSettings)(flush: List[E] => Unit) = {
     def flushIfRequired(e: E, rep: LoaderReport[E]) = {
       if (rep.list.size >= settings.size) {

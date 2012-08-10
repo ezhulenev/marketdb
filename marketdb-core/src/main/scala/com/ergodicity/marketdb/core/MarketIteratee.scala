@@ -9,11 +9,8 @@ import sbinary.Operations._
 import com.twitter.util.{Promise, Future}
 import java.util.ArrayList
 import org.hbase.async.{KeyValue, Scanner}
-import sbinary.{Writes, Reads}
-import com.twitter.ostrich.stats.Stats
-import java.util.concurrent.atomic.AtomicBoolean
+import sbinary.Reads
 import com.ergodicity.marketdb.model.{Security, TradePayload, Market}
-import com.ergodicity.zeromq.Serializer
 
 
 sealed trait MarketTimeSeries[E] {
@@ -91,34 +88,6 @@ case class TradesTimeSeries(market: Market, security: Security, interval: Interv
 }
 
 object MarketIteratee {
-  import com.ergodicity.zeromq.{Client => ZMQClient}
-
-  def zmqStreamer[E, A](client: ZMQClient, serializer: Serializer[E], interrupt: AtomicBoolean = new AtomicBoolean(false))
-                     (implicit writes: Writes[A]): IterV[E, Int] = {
-
-    def step(is: Int, e: E)(s: Input[E]): IterV[E, Int] = {
-      s(el = e2 => {
-        Stats.incr("trades_streamed_zmq", 1);
-        client.send(e2)(serializer)
-        if (interrupt.get) Done(is + 1, EOF[E]) else Cont(step(is + 1, e2))
-      },
-        empty = Cont(step(is, e)),
-        eof = Done(is, EOF[E]))
-    }
-
-    def first(s: Input[E]): IterV[E, Int] = {
-      s(el = e1 => {
-        Stats.incr("trades_streamed_zmq", 1);
-        client.send(e1)(serializer)
-        Cont(step(1, e1))
-      },
-        empty = Cont(first),
-        eof = Done(0, EOF[E]))
-    }
-
-    Cont(first)
-  }
-
   def counter[E]: IterV[E, Int] = {
     def step(is: Int, e: E)(s: Input[E]): IterV[E, Int] = {
       s(el = e2 => Cont(step(is + 1, e2)),
