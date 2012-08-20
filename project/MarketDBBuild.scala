@@ -137,7 +137,7 @@ object Dependency {
     val Scalatest    = "1.8"
     val Slf4j        = "1.6.4"
     val Junit        = "4.5"
-    val Mockito      = "1.8.1"
+    val Mockito      = "1.9.0"
     val Powermock    = "1.4.11"
     val Scalaz       = "6.0.4"
     val Cglib        = "2.2.2"
