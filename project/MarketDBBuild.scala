@@ -155,7 +155,7 @@ object Dependency {
     val Ostrich      = "8.2.3"
 
     // Async HBase transisitive hack
-    val AsyncHBase              = "1.3.0"
+    val AsyncHBase              = "1.3.2"
     val StumbleuponAsync        = "1.2.0"
     val Zookeeper               =  "3.4.3"
   }
