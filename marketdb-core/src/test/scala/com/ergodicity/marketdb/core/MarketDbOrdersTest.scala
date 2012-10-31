@@ -22,7 +22,7 @@ import org.scalatest.Assertions._
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[HBaseClient], classOf[RowLock], classOf[Deferred[_]]))
 class MarketDbOrdersTest extends HBaseMatchers {
-  val log = LoggerFactory.getLogger(classOf[MarketDbOrdersTest]);
+  val log = LoggerFactory.getLogger(classOf[MarketDbOrdersTest])
 
   val tradesTable = "TRADES"
   val ordersTable = "ORDERS"
@@ -129,7 +129,7 @@ class MarketDbOrdersTest extends HBaseMatchers {
     val year = ByteArray(payload.time.getYear)
     val day = ByteArray(payload.time.getDayOfYear)
     val minute = ByteArray(payload.time.getMinuteOfDay)
-    val row = ByteArray('0') ++ ByteArray(0, 0, 1) ++ year ++ day ++ minute;
+    val row = ByteArray('0') ++ ByteArray(0, 0, 1) ++ year ++ day ++ minute
 
     // Init mocks
     when(marketUidProvider.provideId("RTS")).thenReturn(Future {UniqueId("RTS", ByteArray('0'))})

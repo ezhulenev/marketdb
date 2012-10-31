@@ -1,33 +1,33 @@
 package integration.ergodicity.marketdb.core
 
-import org.scalatest.{GivenWhenThen, Spec}
-import org.slf4j.LoggerFactory
-import org.joda.time.DateTime
-import integration.ergodicity.marketdb.TimeRecording
-import com.ergodicity.marketdb.model._
-import java.io.File
-import com.twitter.ostrich.admin.RuntimeEnvironment
-import scala.Predef._
-import com.ergodicity.marketdb.core.MarketDB
-import com.twitter.util.Future
 import collection.JavaConversions
+import com.ergodicity.marketdb.core.MarketDB
+import com.ergodicity.marketdb.model._
+import com.twitter.ostrich.admin.RuntimeEnvironment
+import com.twitter.util.Future
+import integration.ergodicity.marketdb.TimeRecording
+import java.io.File
+import org.joda.time.DateTime
 import org.scala_tools.time.Implicits._
+import org.scalatest.{WordSpec, GivenWhenThen}
+import org.slf4j.LoggerFactory
+import scala.Predef._
 
-class MarketDbOrdersIntegrationTest extends Spec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[MarketDbOrdersIntegrationTest])
+class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording {
+  override val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")
   val time = new DateTime
   val payload = OrderPayload(market, security, 11l, time, 100, 101, 1, BigDecimal("111"), 1, 1, None)
 
-  describe("MarketDB") {
+  "MarketDB" must {
 
     val runtime = RuntimeEnvironment(this, Array[String]())
-    runtime.configFile = new File(this.getClass.getResource("/config/it.scala").toURI)
+    runtime.configFile = new File("./config/it.scala")
     val marketDB = runtime.loadRuntimeConfig[MarketDB]()
 
-    it("should persist new order") {
+    "should persist new order" in {
 
       // Execute
       val futureReaction = recordTime("Add order", () => marketDB.addOrder(payload))
@@ -36,7 +36,7 @@ class MarketDbOrdersIntegrationTest extends Spec with GivenWhenThen with TimeRec
       log.info("order reaction: " + reaction)
     }
 
-    it("should persist new orders and scan them later") {
+    "should persist new orders and scan them later" in {
       val time1 = new DateTime(1970, 01, 01, 1, 0, 0, 0)
       val time2 = new DateTime(1970, 01, 01, 1, 0, 1, 0)
 
@@ -56,10 +56,10 @@ class MarketDbOrdersIntegrationTest extends Spec with GivenWhenThen with TimeRec
       val rows = scanner.nextRows().joinUninterruptibly()
       log.info("ROWS Jan 1: " + rows)
 
-      import sbinary.Operations._
       import OrderProtocol._
+      import sbinary.Operations._
       val orders = for (list <- JavaConversions.asScalaIterator(rows.iterator());
-                        kv <- JavaConversions.asScalaIterator(list.iterator())) yield fromByteArray[OrderPayload](kv.value());
+                        kv <- JavaConversions.asScalaIterator(list.iterator())) yield fromByteArray[OrderPayload](kv.value())
 
       orders foreach {
         order => log.info("Order: " + order)

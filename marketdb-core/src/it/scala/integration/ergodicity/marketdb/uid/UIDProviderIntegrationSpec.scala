@@ -2,7 +2,7 @@ package integration.ergodicity.marketdb.uid
 
 import java.util.Random
 import java.lang.StringBuffer
-import org.scalatest.{GivenWhenThen, Spec}
+import org.scalatest.{WordSpec, GivenWhenThen}
 import java.io.File
 import com.twitter.util.Eval
 import integration.ergodicity.marketdb.{TimeRecording, EvalSupport}
@@ -11,22 +11,22 @@ import org.hbase.async.HBaseClient
 import com.ergodicity.marketdb.uid.{UIDProvider, UniqueId, UIDCache}
 import com.ergodicity.marketdb.ByteArray
 
-class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecording with EvalSupport {
+class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording with EvalSupport {
 
   val Characters = "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890"
   val Kind = "TestKind"
 
   val RandomGenerator = new Random
 
-  val configFile = new File(this.getClass.getResource("/config/it.scala").toURI)
+  val configFile = new File("./config/it.scala")
   val eval = new Eval(getConfigTarget(configFile))
   val config = eval[MarketDBConfig](configFile)
 
   lazy val client = new HBaseClient(config.zookeeperQuorum)
 
-  describe("UIDProvider") {
+  "UIDProvider" must {
 
-    it("should return None for unknown name") {
+    "should return None for unknown name" in {
       val unknownName = generateString(10) // Generate unique name
 
       given("new UIDProvider with empty cache")
@@ -44,7 +44,7 @@ class UIDProviderIntegrationTest extends Spec with GivenWhenThen with TimeRecord
       })
     }
 
-    it("should create new id for given name") {
+    "should create new id for given name" in {
       val name = generateString(10) // Generate unique name
 
       given("new UIDProvider with empty cache")

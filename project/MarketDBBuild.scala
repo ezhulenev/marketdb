@@ -3,6 +3,8 @@ import sbt.Keys._
 import sbtassembly.Plugin._
 import AssemblyKeys._
 import net.virtualvoid.sbt.graph.Plugin._
+import scala._
+import scala.Some
 
 object MarketDBBuild extends Build {
 
@@ -37,6 +39,17 @@ object MarketDBBuild extends Build {
       assemblySettings ++ extAssemblySettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
       scalacOptions += "-deprecation",
       libraryDependencies ++= Dependencies.core
+    )
+  ).configs( IntegrationTest )
+    .settings( Defaults.itSettings : _*)
+
+  lazy val marketdbIteratee = Project(
+    id = "marketdb-iteratee",
+    base = file("marketdb-iteratee"),
+    dependencies = Seq(marketdbApi, marketdbCore),
+    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
+      scalacOptions += "-deprecation",
+      libraryDependencies ++= Dependencies.iteratee
     )
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
@@ -120,9 +133,10 @@ object Dependencies {
   val api = Seq(finagleCore, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
 
   val core = Seq(ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, scalaz, cglib, jodaTime, jodaConvert) ++
-    Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface) ++
-    Seq(asyncHBase, stumbleuponAsync, zookeeper)
+    Seq(asyncHBase, stumbleuponAsync, zookeeper) ++
+    Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 
+  val iteratee = Seq() ++ Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 
   val loader = Seq(ostrich, finagleCore, finagleKestrel, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz) ++
     Seq(Test.scalatest, Test.mockito)
