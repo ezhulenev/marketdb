@@ -5,8 +5,8 @@ import com.ergodicity.marketdb.event.{OrderSerialized, OrderEnriched, OrderRecei
 import Behaviors._
 import sbinary._
 import Operations._
-import com.ergodicity.marketdb.core.MarketDB
 import org.joda.time.DateTime
+import com.ergodicity.marketdb.core.MarketDb
 
 object Order extends AggregateFactory[Order, OrderEvent] {
 
@@ -25,7 +25,7 @@ object OrderRow {
     val day = ByteArray(time.getDayOfYear)
     val minute = ByteArray(time.getMinuteOfDay)
 
-    marketId ++ securityId ++ year ++ day ++ minute;
+    marketId ++ securityId ++ year ++ day ++ minute
   }
 }
 
@@ -47,7 +47,7 @@ case class DraftOrder(payload: OrderPayload) extends Order {
 case class EnrichedOrder(marketId: ByteArray, securityId: ByteArray, payload: OrderPayload) extends Order {
 
   def serializeOrder(): Behavior[BinaryOrder] = {
-    import MarketDB._
+    import MarketDb._
     import OrderProtocol._
 
     guard(marketId.length == MarketIdWidth, "Market Id width '" + marketId.length + "' not equals to expected: " + MarketIdWidth) flatMap {

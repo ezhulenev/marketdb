@@ -1,19 +1,20 @@
-package com.ergodicity.marketdb.core
+package com.ergodicity.marketdb
 
+import com.ergodicity.marketdb.core.{MarketDb, MarketService}
+import com.ergodicity.marketdb.model.{OrderPayload, TradePayload, TradeProtocol}
 import com.twitter.conversions.time._
+import com.twitter.finagle.builder.ClientBuilder
+import com.twitter.finagle.kestrel.protocol.Kestrel
 import com.twitter.finagle.kestrel.{ReadHandle, Client}
 import com.twitter.finagle.service.Backoff
-import com.twitter.finagle.kestrel.protocol.Kestrel
-import com.twitter.finagle.builder.ClientBuilder
-import org.joda.time.format.DateTimeFormat
-import java.util.concurrent.atomic.{AtomicReference, AtomicLong, AtomicBoolean}
-import java.util.TimerTask
 import com.twitter.ostrich.stats.Stats
-import org.slf4j.LoggerFactory
-import java.util.concurrent.TimeUnit
 import com.twitter.util.JavaTimer
-import com.ergodicity.marketdb.model.{OrderPayload, TradePayload, TradeProtocol}
 import java.net.{ConnectException, Socket}
+import java.util.TimerTask
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.{AtomicReference, AtomicLong, AtomicBoolean}
+import org.joda.time.format.DateTimeFormat
+import org.slf4j.LoggerFactory
 
 
 trait MarketLoader extends MarketService
@@ -23,7 +24,7 @@ trait MarketLoader extends MarketService
  * @param marketDb marketDB
  * @param config Kestrel server & queue config
  */
-class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends MarketLoader {
+class KestrelLoader(val marketDb: MarketDb, config: KestrelConfig) extends MarketLoader {
   val log = LoggerFactory.getLogger(classOf[KestrelLoader])
 
   log.info("Create marketDB Kestrel loader for configuration: " + config)
@@ -64,10 +65,7 @@ class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends Marke
     def initializeTradesHandler() {
       log.info("Initialize trades handler")
       // Attach an async error handler that prints to stderr
-      tradesReadHandle.error foreach {
-        e =>
-          if (!MarketDB.stopped.get) System.err.println("zomg! got an error for Trades" + e)
-      }
+      tradesReadHandle.error foreach (e => System.err.println("zomg! got an error for Trades" + e))
 
       val first = new AtomicBoolean(true)
       val start = new AtomicLong()
@@ -78,9 +76,8 @@ class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends Marke
       tradesReadHandle.messages foreach {
         msg =>
           try {
-            import sbinary._
-            import Operations._
             import TradeProtocol._
+            import sbinary.Operations._
 
             val list = fromByteArray[List[TradePayload]](msg.bytes.array())
             log.trace("Received trades; Size: " + list.size)
@@ -128,11 +125,7 @@ class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends Marke
       log.info("Initialize orders handler")
 
       // Attach an async error handler that prints to stderr
-      ordersReadHandle.error foreach {
-        e =>
-          if (!MarketDB.stopped.get) System.err.println("zomg! got an error for Orders" + e)
-      }
-
+      ordersReadHandle.error foreach (e => System.err.println("zomg! got an error for Trades" + e))
       val first = new AtomicBoolean(true)
       val start = new AtomicLong()
 
@@ -142,9 +135,8 @@ class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends Marke
       ordersReadHandle.messages foreach {
         msg =>
           try {
-            import sbinary._
-            import Operations._
             import com.ergodicity.marketdb.model.OrderProtocol._
+            import sbinary.Operations._
 
             val list = fromByteArray[List[OrderPayload]](msg.bytes.array())
             log.trace("Received orders; Size: " + list.size)
@@ -207,9 +199,9 @@ class KestrelLoader(val marketDb: MarketDB, config: KestrelConfig) extends Marke
           new Socket(host.split(":")(0), host.split(":")(1).toInt)
       }
     } catch {
-      case e: ConnectException => 
+      case e: ConnectException =>
         log.error("Error: Kestrel must be running on each host: " + config.hosts)
-        throw e;
+        throw e
     }
   }
 

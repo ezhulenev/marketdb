@@ -1,14 +1,14 @@
-import com.ergodicity.marketdb.core._
-import com.twitter.ostrich.admin.config.{StatsConfig, JsonStatsLoggerConfig, TimeSeriesCollectorConfig}
+import com.ergodicity.marketdb.core.MarketDb
+import com.ergodicity.marketdb.{MarketDbConfig, KestrelLoader, KestrelConfig}
 
-new MarketDBConfig {
+new MarketDbConfig {
   admin.httpPort = 9000
 
   tradesTable = "test-market-trades"
   ordersTable = "test-market-orders"
   uidTable = "test-market-uid"
 
-  val kestrelLoaderService = (marketDB: MarketDB) => {
+  val kestrelLoaderService = (marketDB: MarketDb) => {
     new KestrelLoader(marketDB, KestrelConfig(Seq("localhost:22133"), "trades", "orders", 30))
   }
 

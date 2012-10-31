@@ -11,7 +11,7 @@ import scala.Some
 import scalaz.IterV.{El, EOF, Cont, Done}
 import com.ergodicity.marketdb.model.{TradePayload, Security, Market}
 import org.joda.time.Interval
-import com.ergodicity.marketdb.core.MarketDB
+import com.ergodicity.marketdb.core.MarketDb
 
 sealed trait MarketTimeSeries[E] {
 
@@ -85,6 +85,6 @@ sealed trait MarketTimeSeries[E] {
 
 
 case class TradesTimeSeries(market: Market, security: Security, interval: Interval)
-                           (implicit marketDb: MarketDB) extends MarketTimeSeries[TradePayload] {
+                           (implicit marketDb: MarketDb) extends MarketTimeSeries[TradePayload] {
   def openScanner = marketDb.scanTrades(market, security, interval)
 }

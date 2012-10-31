@@ -1,7 +1,7 @@
 package integration.ergodicity.marketdb.core
 
 import collection.JavaConversions
-import com.ergodicity.marketdb.core.MarketDB
+import com.ergodicity.marketdb.core.MarketDb
 import com.ergodicity.marketdb.model._
 import com.twitter.ostrich.admin.RuntimeEnvironment
 import com.twitter.util.Future
@@ -21,11 +21,11 @@ class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
   val time = new DateTime
   val payload = OrderPayload(market, security, 11l, time, 100, 101, 1, BigDecimal("111"), 1, 1, None)
 
-  "MarketDB" must {
+  "MarketDb" must {
 
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
-    val marketDB = runtime.loadRuntimeConfig[MarketDB]()
+    val marketDB = runtime.loadRuntimeConfig[MarketDb]()
 
     "should persist new order" in {
 

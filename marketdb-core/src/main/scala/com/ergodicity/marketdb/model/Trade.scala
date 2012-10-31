@@ -5,7 +5,7 @@ import com.ergodicity.marketdb.event.{TradeSerialized, TradeEnriched, TradeRecei
 import Behaviors._
 import sbinary._
 import Operations._
-import com.ergodicity.marketdb.core.MarketDB
+import com.ergodicity.marketdb.core.MarketDb
 import org.joda.time.DateTime
 
 object Trade extends AggregateFactory[Trade, TradeEvent] {
@@ -47,7 +47,7 @@ case class DraftTrade(payload: TradePayload) extends Trade {
 case class EnrichedTrade(marketId: ByteArray, securityId: ByteArray, payload: TradePayload) extends Trade {
 
   def serializeTrade(): Behavior[BinaryTrade] = {
-    import MarketDB._
+    import MarketDb._
     import TradeProtocol._
 
     guard(marketId.length == MarketIdWidth, "Market Id width '" + marketId.length + "' not equals to expected: " + MarketIdWidth) flatMap {

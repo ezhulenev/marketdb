@@ -17,7 +17,7 @@ object MarketDBBuild extends Build {
   lazy val marketdb = Project(
     id = "marketdb",
     base = file("."),
-    aggregate = Seq(marketdbApi, marketdbCore, marketdbLoader)
+    aggregate = Seq(marketdbApi, marketdbApp, marketdbCore, marketdbIteratee, marketdbLoader)
   ).configs( IntegrationTest )
     .settings( (Defaults.itSettings ++ graphSettings) : _*)
 
@@ -31,12 +31,22 @@ object MarketDBBuild extends Build {
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
 
+  lazy val marketdbApp = Project(
+    id = "marketdb-app",
+    base = file("marketdb-app"),
+    dependencies = Seq(marketdbCore, marketdbIteratee),
+    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ assemblySettings ++ extAssemblySettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
+      scalacOptions += "-deprecation",
+      libraryDependencies ++= Dependencies.app
+    )
+  ).configs( IntegrationTest )
+    .settings( Defaults.itSettings : _*)
+
   lazy val marketdbCore = Project(
     id = "marketdb-core",
     base = file("marketdb-core"),
     dependencies = Seq(marketdbApi),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++
-      assemblySettings ++ extAssemblySettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
+    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
       scalacOptions += "-deprecation",
       libraryDependencies ++= Dependencies.core
     )
@@ -131,6 +141,8 @@ object Dependencies {
   import Dependency._
 
   val api = Seq(finagleCore, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
+
+  val app = Seq() ++ Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 
   val core = Seq(ostrich, scalaTime, sbinary, finagleCore, finagleKestrel, scalaSTM, slf4jApi, logback, scalaz, cglib, jodaTime, jodaConvert) ++
     Seq(asyncHBase, stumbleuponAsync, zookeeper) ++

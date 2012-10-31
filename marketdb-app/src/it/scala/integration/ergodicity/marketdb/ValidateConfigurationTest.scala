@@ -1,6 +1,6 @@
 package integration.ergodicity.marketdb
 
-import com.ergodicity.marketdb.core.MarketDBConfig
+import com.ergodicity.marketdb.MarketDbConfig
 import com.stumbleupon.async.Deferred
 import com.twitter.util.Eval
 import java.io.File
@@ -15,7 +15,7 @@ class ValidateConfigurationTest extends WordSpec with EvalSupport {
 
   val configFile = new File("./config/it.scala")
   val eval = new Eval(getConfigTarget(configFile))
-  val config = eval[MarketDBConfig](configFile)
+  val config = eval[MarketDbConfig](configFile)
 
   lazy val client = new HBaseClient(config.zookeeperQuorum)
 

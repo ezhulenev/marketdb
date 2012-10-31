@@ -1,16 +1,15 @@
 package com.ergodicity.marketdb.core
 
-import org.slf4j.LoggerFactory
-import com.ergodicity.marketdb.uid.UIDProvider
-import org.hbase.async.{PutRequest, HBaseClient}
-import com.ergodicity.marketdb.{AsyncHBase, ByteArray}
-import com.ergodicity.marketdb.model._
-import com.twitter.ostrich.admin.{Service, RuntimeEnvironment}
-import com.twitter.util.{Promise, Future}
-import com.twitter.ostrich.stats.Stats
-import java.util.concurrent.atomic.AtomicBoolean
-import org.joda.time.Interval
 import com.ergodicity.marketdb.event.{OrderReceived, TradeReceived}
+import com.ergodicity.marketdb.model._
+import com.ergodicity.marketdb.uid.UIDProvider
+import com.ergodicity.marketdb.{AsyncHBase, ByteArray}
+import com.twitter.ostrich.admin.Service
+import com.twitter.ostrich.stats.Stats
+import com.twitter.util.{Promise, Future}
+import org.hbase.async.{PutRequest, HBaseClient}
+import org.joda.time.Interval
+import org.slf4j.LoggerFactory
 
 trait MarketService extends Service
 
@@ -18,32 +17,15 @@ case class TradePersisted(payload: TradePayload)
 
 case class OrderPersisted(payload: OrderPayload)
 
-object MarketDB {
-  val log = LoggerFactory.getLogger(getClass.getName)
+object MarketDb {
   val MarketIdWidth: Short = 1
   val SecurityIdWidth: Short = 3
-
-  var marketDB: MarketDB = null
-  var runtime: RuntimeEnvironment = null
-  val stopped = new AtomicBoolean(false)
-
-  def main(args: Array[String]) {
-    try {
-      runtime = RuntimeEnvironment(this, args)
-      marketDB = runtime.loadRuntimeConfig[MarketDB]()
-      marketDB.start()
-    } catch {
-      case e =>
-        log.error("Exception during startup; exiting!", e)
-        System.exit(1)
-    }
-  }
 }
 
-class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdProvider: UIDProvider,
-               val tradesTable: String, val ordersTable: String, serviceBuilders: Seq[MarketDB => MarketService] = Seq()) extends Service {
+class MarketDb(client: HBaseClient, marketIdProvider: UIDProvider, securityIdProvider: UIDProvider,
+               val tradesTable: String, val ordersTable: String, serviceBuilders: Seq[MarketDb => MarketService] = Seq()) extends Service {
 
-  val log = LoggerFactory.getLogger(classOf[MarketDB])
+  val log = LoggerFactory.getLogger(classOf[MarketDb])
   val ColumnFamily = ByteArray("id")
 
   log.info("Create marketDB for table: " + tradesTable)
@@ -57,7 +39,6 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
   def shutdown() {
     log.info("Shutdown marketDB")
     client.shutdown()
-    MarketDB.stopped.set(true)
     services foreach {_.shutdown()}
     log.info("marketDB stopped")
   }
@@ -118,7 +99,7 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
 
     val binaryOrder = binaryOrderReaction map {
       case Accepted(event, value) => value
-      case Rejected(err) => throw new RuntimeException("order rejected: "+err);
+      case Rejected(err) => throw new RuntimeException("order rejected: "+err)
     }
 
     binaryOrder flatMap {putOrderToHBase(_)} onFailure {err =>
@@ -142,7 +123,7 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
 
     val binaryTrade = binaryTradeReaction map {
         case Accepted(event, value) => value
-        case Rejected(err) => throw new RuntimeException("Trade rejected: "+err);
+        case Rejected(err) => throw new RuntimeException("Trade rejected: "+err)
     }
 
     binaryTrade flatMap {putTradeToHBase(_)} onFailure {err =>
@@ -161,7 +142,7 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
       deferred.addCallback {(_: Any) =>promise.setValue(true)}
       deferred.addErrback {(e: Throwable) => promise.setException(e)}
     } catch {
-      case e => promise.setException(e)
+      case e: Throwable => promise.setException(e)
     }
 
     promise
@@ -178,7 +159,7 @@ class MarketDB(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
       deferred.addCallback {(_: Any) =>promise.setValue(true)}
       deferred.addErrback {(e: Throwable) => promise.setException(e)}
     } catch {
-      case e => promise.setException(e)
+      case e: Throwable => promise.setException(e)
     }
 
     promise

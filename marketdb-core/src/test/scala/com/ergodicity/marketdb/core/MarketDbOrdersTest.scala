@@ -39,7 +39,7 @@ class MarketDbOrdersTest extends HBaseMatchers {
   val marketUidProvider = mock(classOf[UIDProvider])
   val securityUidProvider = mock(classOf[UIDProvider])
 
-  val marketDb = new MarketDB(client, marketUidProvider, securityUidProvider, tradesTable, ordersTable)
+  val marketDb = new MarketDb(client, marketUidProvider, securityUidProvider, tradesTable, ordersTable)
 
 
   @Test

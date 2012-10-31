@@ -1,33 +1,30 @@
 package integration.ergodicity.marketdb.iteratee
 
-import com.ergodicity.marketdb.core.MarketDB
+import com.ergodicity.marketdb.core.MarketDb
 import com.ergodicity.marketdb.iteratee.{TradesTimeSeries, MarketIteratees}
+import com.ergodicity.marketdb.model.Market
+import com.ergodicity.marketdb.model.Security
+import com.ergodicity.marketdb.model.TradePayload
 import com.ergodicity.marketdb.model.TradeProtocol._
-import com.ergodicity.marketdb.model.{TradePayload, Security, Market}
 import com.twitter.ostrich.admin.RuntimeEnvironment
 import com.twitter.util.Future
-import integration.ergodicity.marketdb.TimeRecording
-import integration.ergodicity.marketdb.core.OrdersIntegrationSpec
 import java.io.File
 import org.joda.time.DateTime
 import org.scala_tools.time.Implicits._
 import org.scalatest.{WordSpec, GivenWhenThen}
-import org.slf4j.LoggerFactory
 
-class TradesIterateeSpec extends WordSpec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
-
+class TradesIterateeSpec extends WordSpec with GivenWhenThen {
   val NoSystem = true
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")
   val time = new DateTime
 
-  "MarketDB" must {
+  "MarketDb" must {
 
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
-    val marketDB = runtime.loadRuntimeConfig[MarketDB]()
+    val marketDB = runtime.loadRuntimeConfig[MarketDb]()
 
     "should persist new trades iterate over them with MarketIteratee" in {
       val time1 = new DateTime(1970, 01, 05, 1, 0, 0, 0)

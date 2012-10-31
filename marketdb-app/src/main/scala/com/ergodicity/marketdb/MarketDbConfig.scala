@@ -1,22 +1,22 @@
-package com.ergodicity.marketdb.core
+package com.ergodicity.marketdb
 
-import com.twitter.ostrich.admin.config.ServerConfig
-import com.twitter.ostrich.admin.RuntimeEnvironment
-import org.hbase.async.HBaseClient
+import com.ergodicity.marketdb.core.{MarketService, MarketDb}
 import com.ergodicity.marketdb.uid.{UIDCache, UIDProvider}
-import com.ergodicity.marketdb.ByteArray
-import org.slf4j.LoggerFactory
+import com.twitter.ostrich.admin.RuntimeEnvironment
+import com.twitter.ostrich.admin.config.ServerConfig
 import com.twitter.ostrich.stats.Stats
+import org.hbase.async.HBaseClient
+import org.slf4j.LoggerFactory
 
-class MarketDBConfig extends ServerConfig[MarketDB] {
-  val log = LoggerFactory.getLogger(classOf[MarketDBConfig])
+class MarketDbConfig extends ServerConfig[MarketDb] {
+  val log = LoggerFactory.getLogger(classOf[MarketDbConfig])
 
   var zookeeperQuorum = "127.0.0.1"
   var tradesTable = "market-trades"
   var ordersTable = "market-orders"
   var uidTable = "market-uid"
-  
-  var services: Seq[MarketDB => MarketService] = Seq()
+
+  var services: Seq[MarketDb => MarketService] = Seq()
 
   def apply(runtime: RuntimeEnvironment) = {
     log.info("Build new marketDB configuration")
@@ -24,7 +24,7 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
 
     val client = new HBaseClient(zookeeperQuorum)
 
-    import MarketDB._
+    import MarketDb._
     val marketUIDProvider = new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Market"), MarketIdWidth)
     val securityUIDProvider =  new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Security"), SecurityIdWidth)
 
@@ -34,7 +34,7 @@ class MarketDBConfig extends ServerConfig[MarketDB] {
     Stats.addGauge("securityUid_cache_hits") {securityUIDProvider .cacheHits}
     Stats.addGauge("securityUid_cache_misses") {securityUIDProvider .cacheMisses}
 
-    new MarketDB(client, marketUIDProvider, securityUIDProvider , tradesTable, ordersTable, services)
+    new MarketDb(client, marketUIDProvider, securityUIDProvider , tradesTable, ordersTable, services)
   }
 }
 

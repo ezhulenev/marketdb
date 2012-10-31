@@ -6,10 +6,9 @@ import org.scalatest.{WordSpec, GivenWhenThen}
 import java.io.File
 import com.twitter.util.Eval
 import integration.ergodicity.marketdb.{TimeRecording, EvalSupport}
-import com.ergodicity.marketdb.core.MarketDBConfig
 import org.hbase.async.HBaseClient
 import com.ergodicity.marketdb.uid.{UIDProvider, UniqueId, UIDCache}
-import com.ergodicity.marketdb.ByteArray
+import com.ergodicity.marketdb.{MarketDbConfig, ByteArray}
 
 class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording with EvalSupport {
 
@@ -20,7 +19,7 @@ class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRe
 
   val configFile = new File("./config/it.scala")
   val eval = new Eval(getConfigTarget(configFile))
-  val config = eval[MarketDBConfig](configFile)
+  val config = eval[MarketDbConfig](configFile)
 
   lazy val client = new HBaseClient(config.zookeeperQuorum)
 

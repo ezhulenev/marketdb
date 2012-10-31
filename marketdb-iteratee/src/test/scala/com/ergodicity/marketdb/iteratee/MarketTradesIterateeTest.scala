@@ -1,10 +1,10 @@
 package com.ergodicity.marketdb.iteratee
 
-import com.ergodicity.marketdb.core.MarketDB
+import com.ergodicity.marketdb.ByteArray
+import com.ergodicity.marketdb.core.MarketDb
 import com.ergodicity.marketdb.model.Market
 import com.ergodicity.marketdb.model.Security
 import com.ergodicity.marketdb.model.TradePayload
-import com.ergodicity.marketdb.{ByteArray, ScannerMock}
 import com.twitter.util.Future
 import org.hbase.async.{HBaseException, Scanner}
 import org.joda.time.DateTime
@@ -43,7 +43,7 @@ class MarketTradesIterateeTest {
 
   @Test
   def testOpenScannerFailed() {
-    implicit val marketDb = mock(classOf[MarketDB])
+    implicit val marketDb = mock(classOf[MarketDb])
     when(marketDb.scanTrades(any(), any(), any())).thenThrow(new IllegalStateException)
 
     val trades = TradesTimeSeries(market, security, interval)
@@ -59,7 +59,7 @@ class MarketTradesIterateeTest {
     val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, NoSystem)
     val scanner = ScannerMock(payloads)
 
-    implicit val marketDb = mock(classOf[MarketDB])
+    implicit val marketDb = mock(classOf[MarketDb])
     when(marketDb.scanTrades(any(), any(), any())).thenReturn(Future(scanner))
 
     val trades = TradesTimeSeries(market, security, interval)
@@ -78,7 +78,7 @@ class MarketTradesIterateeTest {
     val err = mock(classOf[HBaseException])
     val scanner = ScannerMock(payloads, failOnBatch = Some(3, err))
 
-    implicit val marketDb = mock(classOf[MarketDB])
+    implicit val marketDb = mock(classOf[MarketDb])
     when(marketDb.scanTrades(any(), any(), any())).thenReturn(Future(scanner))
 
     val trades = TradesTimeSeries(market, security, interval)

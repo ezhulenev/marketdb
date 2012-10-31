@@ -1,31 +1,30 @@
 package integration.ergodicity.marketdb.iteratee
 
-import com.ergodicity.marketdb.model._
+import com.ergodicity.marketdb.core.MarketDb
+import com.ergodicity.marketdb.iteratee.MarketIteratees._
+import com.ergodicity.marketdb.iteratee.TradesTimeSeries
+import com.ergodicity.marketdb.model.{TradeProtocol, Market, Security, TradePayload}
 import com.twitter.ostrich.admin.RuntimeEnvironment
-import integration.ergodicity.marketdb.TimeRecording
-import integration.ergodicity.marketdb.core.OrdersIntegrationSpec
 import java.io.File
 import org.joda.time.DateTime
 import org.scala_tools.time.Implicits._
 import org.scalatest.{WordSpec, GivenWhenThen}
 import org.slf4j.LoggerFactory
 import scala.Predef._
-import com.ergodicity.marketdb.core.MarketDB
-import com.ergodicity.marketdb.iteratee.TradesTimeSeries
 
 
-class IterateePerformanceSpec extends WordSpec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
+class IterateePerformanceSpec extends WordSpec with GivenWhenThen {
+  val log = LoggerFactory.getLogger(classOf[IterateePerformanceSpec])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")
 
   import TradeProtocol._
 
-  "MarketDB" must {
+  "MarketDb" must {
     val runtime = RuntimeEnvironment(this, Array[String]())
-    runtime.configFile = new File("./config/dev.scala")
-    val marketDB = runtime.loadRuntimeConfig[MarketDB]()
+    runtime.configFile = new File("./config/it.scala")
+    val marketDB = runtime.loadRuntimeConfig[MarketDb]()
 
     "should persist new trades iterate over them with MarketIteratee" in {
       // Expect about 500000 records

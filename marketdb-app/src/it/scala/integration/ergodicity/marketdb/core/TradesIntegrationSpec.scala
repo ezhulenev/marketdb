@@ -1,7 +1,7 @@
 package integration.ergodicity.marketdb.core
 
 import collection.JavaConversions
-import com.ergodicity.marketdb.core.MarketDB
+import com.ergodicity.marketdb.core.MarketDb
 import com.ergodicity.marketdb.model._
 import com.twitter.ostrich.admin.RuntimeEnvironment
 import com.twitter.util.Future
@@ -22,11 +22,11 @@ class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
   val security = Security("RTS 3.12")
   val time = new DateTime
 
-  "MarketDB" must {
+  "MarketDb" must {
 
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
-    val marketDB = runtime.loadRuntimeConfig[MarketDB]()
+    val marketDB = runtime.loadRuntimeConfig[MarketDb]()
 
     "should persist new trade" in {
       val payload = TradePayload(market, security, 11l, BigDecimal("111"), 1, time, NoSystem)
