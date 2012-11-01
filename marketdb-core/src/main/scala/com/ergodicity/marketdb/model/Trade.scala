@@ -25,7 +25,7 @@ object TradeRow {
     val day = ByteArray(time.getDayOfYear)
     val minute = ByteArray(time.getMinuteOfDay)
 
-    marketId ++ securityId ++ year ++ day ++ minute;
+    marketId ++ securityId ++ year ++ day ++ minute
   }
 }
 

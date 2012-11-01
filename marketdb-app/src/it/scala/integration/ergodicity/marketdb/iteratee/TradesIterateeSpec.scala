@@ -1,17 +1,18 @@
 package integration.ergodicity.marketdb.iteratee
 
 import com.ergodicity.marketdb.core.MarketDb
-import com.ergodicity.marketdb.iteratee.{TradesTimeSeries, MarketIteratees}
 import com.ergodicity.marketdb.model.Market
 import com.ergodicity.marketdb.model.Security
 import com.ergodicity.marketdb.model.TradePayload
 import com.ergodicity.marketdb.model.TradeProtocol._
 import com.twitter.ostrich.admin.RuntimeEnvironment
-import com.twitter.util.Future
+import com.twitter.util.{Duration, Future}
 import java.io.File
 import org.joda.time.DateTime
 import org.scala_tools.time.Implicits._
 import org.scalatest.{WordSpec, GivenWhenThen}
+import com.ergodicity.marketdb.iteratee.{TimeSeriesEnumerator, MarketIteratees}
+import java.util.concurrent.TimeUnit
 
 class TradesIterateeSpec extends WordSpec with GivenWhenThen {
   val NoSystem = true
@@ -25,6 +26,8 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
     val marketDB = runtime.loadRuntimeConfig[MarketDb]()
+
+    implicit val client = marketDB.client
 
     "should persist new trades iterate over them with MarketIteratee" in {
       val time1 = new DateTime(1970, 01, 05, 1, 0, 0, 0)
@@ -43,10 +46,13 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       val interval = new DateTime(1970, 01, 05, 0, 0, 0, 0) to new DateTime(1970, 01, 05, 23, 0, 0, 0)
 
       import MarketIteratees._
-      val tradeSeries = TradesTimeSeries(market, security, interval)(marketDB)
+
+      val tradeSeries = marketDB.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
+      val enumerator = new TimeSeriesEnumerator(tradeSeries)
+
       val cnt = counter[TradePayload]
 
-      val iter = tradeSeries.enumerate(cnt).map(_.run)
+      val iter = enumerator.enumerate(cnt).map(_.run)
       val count = iter()
 
       assert(count == 2)

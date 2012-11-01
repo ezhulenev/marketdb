@@ -1,14 +1,13 @@
 package integration.ergodicity.marketdb.uid
 
-import java.util.Random
-import java.lang.StringBuffer
-import org.scalatest.{WordSpec, GivenWhenThen}
-import java.io.File
+import com.ergodicity.marketdb.uid.{UIDProvider, UniqueId, UIDCache}
+import com.ergodicity.marketdb.{Client, MarketDbConfig, ByteArray}
 import com.twitter.util.Eval
 import integration.ergodicity.marketdb.{TimeRecording, EvalSupport}
-import org.hbase.async.HBaseClient
-import com.ergodicity.marketdb.uid.{UIDProvider, UniqueId, UIDCache}
-import com.ergodicity.marketdb.{MarketDbConfig, ByteArray}
+import java.io.File
+import java.lang.StringBuffer
+import java.util.Random
+import org.scalatest.{WordSpec, GivenWhenThen}
 
 class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording with EvalSupport {
 
@@ -21,7 +20,7 @@ class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRe
   val eval = new Eval(getConfigTarget(configFile))
   val config = eval[MarketDbConfig](configFile)
 
-  lazy val client = new HBaseClient(config.zookeeperQuorum)
+  lazy val client = new Client(config.zookeeperQuorum)
 
   "UIDProvider" must {
 

@@ -51,7 +51,7 @@ class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
 
       // -- Verify two rows for 1970 Jan 1
       val interval = new DateTime(1970, 01, 01, 0, 0, 0, 0) to new DateTime(1970, 01, 01, 23, 0, 0, 0)
-      val scanner = marketDB.scanOrders(market, security, interval)()
+      val scanner = marketDB.orders(market, security, interval) map(_.scan(marketDB.client)) apply()
 
       val rows = scanner.nextRows().joinUninterruptibly()
       log.info("ROWS Jan 1: " + rows)

@@ -5,7 +5,7 @@ import com.ergodicity.marketdb.model.{OrderPayload, TradePayload, TradeProtocol}
 import com.twitter.conversions.time._
 import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.kestrel.protocol.Kestrel
-import com.twitter.finagle.kestrel.{ReadHandle, Client}
+import com.twitter.finagle.kestrel.{ReadHandle, Client => KestrelClient}
 import com.twitter.finagle.service.Backoff
 import com.twitter.ostrich.stats.Stats
 import com.twitter.util.JavaTimer
@@ -30,9 +30,9 @@ class KestrelLoader(val marketDb: MarketDb, config: KestrelConfig) extends Marke
   log.info("Create marketDB Kestrel loader for configuration: " + config)
 
   // -- Config Kestrel clients
-  val clients: Seq[Client] = config.hosts.map {
+  val clients: Seq[KestrelClient] = config.hosts.map {
     host =>
-      Client(ClientBuilder()
+      KestrelClient(ClientBuilder()
         .codec(Kestrel())
         .hosts(host)
         .hostConnectionLimit(config.hostConnectionLimit)

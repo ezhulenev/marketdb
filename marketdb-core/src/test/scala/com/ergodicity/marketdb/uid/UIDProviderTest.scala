@@ -1,22 +1,24 @@
 package com.ergodicity.marketdb.uid
 
-import org.junit.runner.RunWith
-import org.powermock.modules.junit4.PowerMockRunner
-import org.junit.Test
-import org.mockito.Mockito._
-import org.mockito.Matchers._
-import org.junit.Assert._
-import org.slf4j.LoggerFactory
-import org.powermock.core.classloader.annotations.{PowerMockIgnore, PrepareForTest}
-import org.hbase.async._
-import scalaz._
-import Scalaz._
+import com.ergodicity.marketdb.Oops
+import com.ergodicity.marketdb._
+import com.stumbleupon.async.{Callback, Deferred}
 import java.util.{Arrays, ArrayList}
-import org.scalatest.Assertions._
+import org.hbase.async._
+import org.junit.Assert._
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.mockito.Matchers._
+import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import com.stumbleupon.async.{Callback, Deferred}
-import com.ergodicity.marketdb.{OopsException, HBaseMatchers, ByteArray, Oops}
+import org.powermock.core.classloader.annotations.{PowerMockIgnore, PrepareForTest}
+import org.powermock.modules.junit4.PowerMockRunner
+import org.scalatest.Assertions._
+import org.slf4j.LoggerFactory
+import scala.Some
+import scalaz._
+import scalaz.Scalaz._
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -33,8 +35,10 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testNameSuccessfulHBaseLookup() {
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
     val cache = new UIDCache
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray(Array[Byte](0, 0, 1))
     val name = "Name"
@@ -72,10 +76,12 @@ class UIDProviderTest extends HBaseMatchers {
 
   @Test
   def testNameWithErrorDuringHBaseLookup() {
-    
+
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
     val cache = new UIDCache
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray("123")
     val name = "Name"
@@ -112,8 +118,10 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testNameWithErrorDuringDeferedCallback() {
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
     val cache = new UIDCache
-    val uid = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val uid = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray("123")
     val name = "Name"
@@ -155,8 +163,10 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testNameWithErrorDuringAddingToCache() {
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
     val cache = mock(classOf[UIDCache])
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray("123")
     val name = "Name"
@@ -202,7 +212,9 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testNameForNonexistentId() {
     val client = mock(classOf[HBaseClient])
-    val provider = new UIDProvider(client, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
+    val provider = new UIDProvider(marketDbClient, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
     when(client.get(anyGet)).thenReturn(Deferred.fromResult(new ArrayList[KeyValue](0)))
 
     val noSuchId = ByteArray("123")
@@ -218,7 +230,9 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testNameWithInvalidId() {
     val client = mock(classOf[HBaseClient])
-    val provider = new UIDProvider(client, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
+    val provider = new UIDProvider(marketDbClient, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
     when(client.get(anyGet)).thenReturn(Deferred.fromResult(new ArrayList[KeyValue](0)))
 
     val invalidId = ByteArray("TooLongId")
@@ -231,8 +245,10 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testIdSuccessfulHBaseLookup() {
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
     val cache = new UIDCache
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray("123")
     val name = "Name"
@@ -272,7 +288,9 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testIdMisconfiguredWidth() {
     val client = mock(classOf[HBaseClient])
-    val uid = new UIDProvider(client, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
+    val uid = new UIDProvider(marketDbClient, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray("12")
     val name = "Name"
@@ -290,7 +308,9 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testIdForNonexistentName() {
     val client = mock(classOf[HBaseClient])
-    val provider = new UIDProvider(client, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
+    val provider = new UIDProvider(marketDbClient, new UIDCache, ByteArray(Table), ByteArray(Kind), 3)
     when(client.get(anyGet)).thenReturn(Deferred.fromResult(new ArrayList[KeyValue](0)))
 
     val noSuchName = "NoSuchName"
@@ -305,8 +325,10 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testGetOrCreateIdWithExistingId() {
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
     val cache = new UIDCache
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray("123")
     val name = "Name"
@@ -348,10 +370,12 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testOrCreateIdAssignIdWithSuccess() {
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
     val lock = mock(classOf[RowLock])
 
     val cache = new UIDCache
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val id = ByteArray(Array[Byte](0,0,5))
 
@@ -398,9 +422,11 @@ class UIDProviderTest extends HBaseMatchers {
   @Test
   def testGetOrCreateIdUnableToAcquireRowLock() {
     val client = mock(classOf[HBaseClient])
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
 
     val cache = new UIDCache
-    val uid = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val uid = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
     // 3 Deffered == MaxRetryCount == 3
     when(client.get(anyGet)).thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null))
       .thenReturn(Deferred.fromResult[ArrayList[KeyValue]](null))
@@ -424,12 +450,18 @@ class UIDProviderTest extends HBaseMatchers {
     // ID has already been assigned.
     
     val clientA = mock(classOf[HBaseClient])
+    val marketDbClientA = mock(classOf[Client])
+    when(marketDbClientA.apply()).thenReturn(clientA)
+
     val cacheA = new UIDCache
-    val providerA = new UIDProvider(clientA, cacheA, ByteArray(Table), ByteArray(Kind), 3)
+    val providerA = new UIDProvider(marketDbClientA, cacheA, ByteArray(Table), ByteArray(Kind), 3)
 
     val clientB = mock(classOf[HBaseClient])
+    val marketDbClientB = mock(classOf[Client])
+    when(marketDbClientB.apply()).thenReturn(clientB)
+
     val cacheB = new UIDCache
-    val providerB = new UIDProvider(clientB, cacheB, ByteArray(Table), ByteArray(Kind), 3)
+    val providerB = new UIDProvider(marketDbClientB, cacheB, ByteArray(Table), ByteArray(Kind), 3)
 
     log.info("CLIENT A: " + clientA)
     log.info("CLIENT B: " + clientB)
@@ -515,7 +547,9 @@ class UIDProviderTest extends HBaseMatchers {
     val cache = new UIDCache
 
     val client = mock(classOf[HBaseClient])
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 1)  // Widht is 1
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 1)  // Widht is 1
 
     val fakeLock = mock(classOf[RowLock])
     when(client.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLock));
@@ -543,7 +577,9 @@ class UIDProviderTest extends HBaseMatchers {
     val cache = new UIDCache
 
     val client = mock(classOf[HBaseClient])
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val fakeLock = mock(classOf[RowLock])
     when(client.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLock));
@@ -555,10 +591,10 @@ class UIDProviderTest extends HBaseMatchers {
     val kvs = new ArrayList[KeyValue](1);
     kvs.add(new KeyValue(MaxIdRow, IdFamily, Kind, Bytes.fromLong(4L)));
 
-    val hbe = fakeHBaseException;
+    val hbe = fakeHBaseException
     when(client.get(getForRow(MaxIdRow)))
       .thenThrow(hbe)
-      .thenReturn(Deferred.fromResult(kvs));
+      .thenReturn(Deferred.fromResult(kvs))
 
     when(client.put(anyPut)).thenReturn(Deferred.fromResult[AnyRef](null))
 
@@ -584,7 +620,9 @@ class UIDProviderTest extends HBaseMatchers {
     val cache = new UIDCache
 
     val client = mock(classOf[HBaseClient])
-    val provider = new UIDProvider(client, cache, ByteArray(Table), ByteArray(Kind), 3)
+    val marketDbClient = mock(classOf[Client])
+    when(marketDbClient.apply()).thenReturn(client)
+    val provider = new UIDProvider(marketDbClient, cache, ByteArray(Table), ByteArray(Kind), 3)
 
     val fakeLock = mock(classOf[RowLock])
     when(client.lockRow(anyRowLockRequest)).thenReturn(Deferred.fromResult(fakeLock));
@@ -592,7 +630,7 @@ class UIDProviderTest extends HBaseMatchers {
     when(client.get(anyGet))      // null  =>  ID doesn't exist.
       .thenAnswer(AnswerWithValue(() => Deferred.fromResult[ArrayList[KeyValue]](null)))
 
-    when(client.put(anyPut)).thenReturn(Deferred.fromResult[AnyRef](null));
+    when(client.put(anyPut)).thenReturn(Deferred.fromResult[AnyRef](null))
 
     // Update once HBASE-2292 is fixed:
     whenFakeIcvThenReturn(client, 5);

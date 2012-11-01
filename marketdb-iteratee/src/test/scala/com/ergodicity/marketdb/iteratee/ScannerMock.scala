@@ -2,7 +2,6 @@ package com.ergodicity.marketdb.iteratee
 
 import collection.JavaConversions
 import collection.JavaConversions._
-import com.ergodicity.marketdb.ByteArray
 import com.ergodicity.marketdb.model.TradeProtocol._
 import com.ergodicity.marketdb.model._
 import com.stumbleupon.async.Deferred
@@ -19,6 +18,7 @@ import org.powermock.modules.junit4.PowerMockRunner
 import org.slf4j.LoggerFactory
 import sbinary.Operations._
 import scala.Some
+import com.ergodicity.marketdb.ByteArray
 
 object ScannerMock {
   val DefaultRowsCount = 10

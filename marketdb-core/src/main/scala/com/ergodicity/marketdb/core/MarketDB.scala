@@ -3,11 +3,11 @@ package com.ergodicity.marketdb.core
 import com.ergodicity.marketdb.event.{OrderReceived, TradeReceived}
 import com.ergodicity.marketdb.model._
 import com.ergodicity.marketdb.uid.UIDProvider
-import com.ergodicity.marketdb.{AsyncHBase, ByteArray}
+import com.ergodicity.marketdb.{Client, TimeSeries, AsyncHBase, ByteArray}
 import com.twitter.ostrich.admin.Service
 import com.twitter.ostrich.stats.Stats
 import com.twitter.util.{Promise, Future}
-import org.hbase.async.{PutRequest, HBaseClient}
+import org.hbase.async.PutRequest
 import org.joda.time.Interval
 import org.slf4j.LoggerFactory
 
@@ -22,7 +22,7 @@ object MarketDb {
   val SecurityIdWidth: Short = 3
 }
 
-class MarketDb(client: HBaseClient, marketIdProvider: UIDProvider, securityIdProvider: UIDProvider,
+class MarketDb(val client: Client, marketIdProvider: UIDProvider, securityIdProvider: UIDProvider,
                val tradesTable: String, val ordersTable: String, serviceBuilders: Seq[MarketDb => MarketService] = Seq()) extends Service {
 
   val log = LoggerFactory.getLogger(classOf[MarketDb])
@@ -43,7 +43,7 @@ class MarketDb(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
     log.info("marketDB stopped")
   }
   
-  def scanTrades(market: Market, security: Security, interval: Interval) = {
+  def trades(market: Market, security: Security, interval: Interval): Future[TimeSeries[TradePayload]] = {
     log.info("Scan marketDB Trades for market="+market.value+"; Security="+security.isin+"; Interval="+interval)
 
     // Get Unique Ids for market and security
@@ -55,14 +55,11 @@ class MarketDb(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
         val startKey = TradeRow(tuple._1.id, tuple._2.id, interval.getStart)
         val stopKey = TradeRow(tuple._1.id, tuple._2.id, interval.getEnd) ++ ByteArray(0)
 
-        val scanner = client.newScanner(ByteArray(tradesTable).toArray)
-        scanner.setStartKey(startKey.toArray)
-        scanner.setStopKey(stopKey.toArray)
-        scanner
+        new TimeSeries[TradePayload](market, security, interval)(ByteArray(tradesTable).toArray, startKey.toArray, stopKey.toArray)
     }
   }
 
-  def scanOrders(market: Market, security: Security, interval: Interval) = {
+  def orders(market: Market, security: Security, interval: Interval): Future[TimeSeries[OrderPayload]] = {
     log.info("Scan marketDB Orders for market="+market.value+"; Security="+security.isin+"; Interval="+interval)
 
     // Get Unique Ids for market and security
@@ -74,14 +71,9 @@ class MarketDb(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
         val startKey = OrderRow(tuple._1.id, tuple._2.id, interval.getStart)
         val stopKey = OrderRow(tuple._1.id, tuple._2.id, interval.getEnd) ++ ByteArray(0)
 
-        val scanner = client.newScanner(ByteArray(ordersTable).toArray)
-        scanner.setStartKey(startKey.toArray)
-        scanner.setStopKey(stopKey.toArray)
-        scanner
+        new TimeSeries[OrderPayload](market, security, interval)(ByteArray(ordersTable).toArray, startKey.toArray, stopKey.toArray)
     }
   }
-
-
 
   def addOrder(payload: OrderPayload) = {
     log.trace("Add order: " + payload)
@@ -138,7 +130,7 @@ class MarketDb(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
     val promise = new Promise[Boolean]
     try {
       import AsyncHBase._
-      val deferred = client.put(putRequest)
+      val deferred = client().put(putRequest)
       deferred.addCallback {(_: Any) =>promise.setValue(true)}
       deferred.addErrback {(e: Throwable) => promise.setException(e)}
     } catch {
@@ -155,7 +147,7 @@ class MarketDb(client: HBaseClient, marketIdProvider: UIDProvider, securityIdPro
     val promise = new Promise[Boolean]
     try {
       import AsyncHBase._
-      val deferred = client.put(putRequest)
+      val deferred = client().put(putRequest)
       deferred.addCallback {(_: Any) =>promise.setValue(true)}
       deferred.addErrback {(e: Throwable) => promise.setException(e)}
     } catch {

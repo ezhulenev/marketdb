@@ -4,6 +4,16 @@ import org.joda.time.DateTime
 import sbinary.Operations._
 import sbinary.{Output, Input, Format, DefaultProtocol}
 
+sealed trait MarketPayload
+
+case class TradePayload(market: Market, security: Security,
+                        tradeId: Long,
+                        price: BigDecimal,
+                        amount: Int,
+                        time: DateTime,
+                        nosystem: Boolean) extends MarketPayload
+
+
 case class OrderPayload(market: Market, security: Security,
                         orderId: Long,
                         time: DateTime,
@@ -13,9 +23,39 @@ case class OrderPayload(market: Market, security: Security,
                         price: BigDecimal,
                         amount: Int,
                         amount_rest: Int,
-                        deal: Option[BigDecimal])
+                        deal: Option[BigDecimal]) extends MarketPayload
+
+
+object TradeProtocol extends DefaultProtocol {
+
+  import MarketProtocol._
+
+  implicit object TradePayloadFormat extends Format[TradePayload] {
+    def reads(in: Input) = TradePayload(
+      read[Market](in),
+      read[Security](in),
+      read[Long](in),
+      read[BigDecimal](in),
+      read[Int](in),
+      read[DateTime](in),
+      read[Boolean](in)
+    )
+
+    def writes(out: Output, payload: TradePayload) {
+      write[Market](out, payload.market)
+      write[Security](out, payload.security)
+      write[Long](out, payload.tradeId)
+      write[BigDecimal](out, payload.price)
+      write[Int](out, payload.amount)
+      write[DateTime](out, payload.time)
+      write[Boolean](out, payload.nosystem)
+    }
+  }
+
+}
 
 object OrderProtocol extends DefaultProtocol {
+
   import MarketProtocol._
 
   implicit object OrderPayloadFormat extends Format[OrderPayload] {
@@ -46,5 +86,5 @@ object OrderProtocol extends DefaultProtocol {
       write(out, payload.amount_rest)
       write(out, payload.deal)
     }
-  }  
+  }
 }
