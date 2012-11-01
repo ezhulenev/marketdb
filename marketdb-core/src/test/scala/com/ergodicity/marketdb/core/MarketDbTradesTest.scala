@@ -12,7 +12,7 @@ import org.junit.Test
 import org.joda.time.DateTime
 import com.ergodicity.marketdb.uid.{UniqueId, UIDProvider}
 import org.hbase.async._
-import com.ergodicity.marketdb.{Client, HBaseMatchers, ByteArray}
+import com.ergodicity.marketdb.{HBaseMatchers, ByteArray}
 import com.ergodicity.marketdb.model._
 import com.twitter.util.Future
 import org.scalatest.Assertions._
@@ -22,7 +22,7 @@ import org.scalatest.Assertions._
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[HBaseClient], classOf[RowLock], classOf[Deferred[_]]))
 class MarketDbTradesTest extends HBaseMatchers {
-  val log = LoggerFactory.getLogger(classOf[MarketDbOrdersTest]);
+  val log = LoggerFactory.getLogger(classOf[MarketDbOrdersTest])
 
   val tradesTable = "TRADES"
   val ordersTable = "ORDERS"
@@ -36,12 +36,10 @@ class MarketDbTradesTest extends HBaseMatchers {
   // Prepare mocks for testing
 
   val client = mock(classOf[HBaseClient])
-  val marketDbClient = mock(classOf[Client])
-  when(marketDbClient.apply()).thenReturn(client)
   val marketUidProvider = mock(classOf[UIDProvider])
   val securityUidProvider = mock(classOf[UIDProvider])
 
-  val marketDb = new MarketDb(marketDbClient, marketUidProvider, securityUidProvider, tradesTable, ordersTable)
+  val marketDb = new MarketDb(client, marketUidProvider, securityUidProvider, tradesTable, ordersTable)
 
 
   @Test

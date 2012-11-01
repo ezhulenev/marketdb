@@ -9,7 +9,7 @@ import java.util.ArrayList
 import com.ergodicity.marketdb.AsyncHBase._
 import java.util.concurrent.Executors
 import com.twitter.util.{FuturePool, Promise, Future}
-import com.ergodicity.marketdb.{Client, OopsException, ByteArray, Oops}
+import com.ergodicity.marketdb.{OopsException, ByteArray, Oops}
 import java.util.concurrent.locks.{ReentrantLock, Lock}
 import java.util.concurrent.atomic.AtomicReference
 import com.twitter.ostrich.stats.Stats
@@ -26,7 +26,7 @@ import com.twitter.ostrich.stats.Stats
  * immutable).  IDs are encoded on a fixed number of bytes, which is
  * implementation dependent.
  */
-class UIDProvider(client: Client, cache: UIDCache,
+class UIDProvider(client: HBaseClient, cache: UIDCache,
                   table: ByteArray, kind: ByteArray, idWidth: Short) {
 
   private val log = LoggerFactory.getLogger(classOf[UIDProvider])
@@ -185,7 +185,7 @@ class UIDProvider(client: Client, cache: UIDCache,
     val get = new GetRequest(table, key).family(family).qualifier(kind)
     lock.map(get.withRowLock(_))
 
-    val deferred = client().get(get)
+    val deferred = client.get(get)
 
     val promise = new Promise[R]
 
@@ -237,7 +237,7 @@ class UIDProvider(client: Client, cache: UIDCache,
 
   private def putToHBase(put: PutRequest): ValidationNEL[Oops, PutRequest] = {
     try {
-      client().put(put).joinUninterruptibly()
+      client.put(put).joinUninterruptibly()
       put.successNel[Oops]
     } catch {
       case e: HBaseException => Oops("HBase failed", Some(e)).failNel[PutRequest]
@@ -321,14 +321,14 @@ class UIDProvider(client: Client, cache: UIDCache,
     }
 
   private def withRowLock[R](f: RowLock => ValidationNEL[Oops, R]): ValidationNEL[Oops, R] = {
-    val lock = client().lockRow(new RowLockRequest(table.toArray, MaxIdRow.toArray)).joinUninterruptibly()
+    val lock = client.lockRow(new RowLockRequest(table.toArray, MaxIdRow.toArray)).joinUninterruptibly()
     try {
       f(lock)
     } catch {
       case e: HBaseException => Oops("HBase failed", Some(e)).failNel[R]
       case e: Exception => Oops("Failed", Some(e)).failNel[R]
     } finally {
-      client().unlockRow(lock)
+      client.unlockRow(lock)
     }
   }
 

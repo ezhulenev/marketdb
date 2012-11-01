@@ -16,7 +16,7 @@ import org.scala_tools.time.Implicits._
 import org.scalatest.Assertions._
 import org.slf4j.LoggerFactory
 import scala.Some
-import com.ergodicity.marketdb.{Client, TimeSeries, ByteArray}
+import com.ergodicity.marketdb.{TimeSeries, ByteArray}
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -38,7 +38,7 @@ class TimeSeriesEnumeratorTest {
   implicit val securityId = (_: Security) => ByteArray(1)
 
   // Implicit parameter for TimeSeriesEnumerator.enumerate
-  implicit val client = mock(classOf[Client])
+  implicit val client = mock(classOf[HBaseClient])
 
   import MarketIteratees._
   import com.ergodicity.marketdb.model.TradeProtocol._

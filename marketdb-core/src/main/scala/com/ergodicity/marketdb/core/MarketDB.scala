@@ -3,11 +3,11 @@ package com.ergodicity.marketdb.core
 import com.ergodicity.marketdb.event.{OrderReceived, TradeReceived}
 import com.ergodicity.marketdb.model._
 import com.ergodicity.marketdb.uid.UIDProvider
-import com.ergodicity.marketdb.{Client, TimeSeries, AsyncHBase, ByteArray}
+import com.ergodicity.marketdb.{TimeSeries, AsyncHBase, ByteArray}
 import com.twitter.ostrich.admin.Service
 import com.twitter.ostrich.stats.Stats
 import com.twitter.util.{Promise, Future}
-import org.hbase.async.PutRequest
+import org.hbase.async.{HBaseClient, PutRequest}
 import org.joda.time.Interval
 import org.slf4j.LoggerFactory
 
@@ -22,7 +22,7 @@ object MarketDb {
   val SecurityIdWidth: Short = 3
 }
 
-class MarketDb(val client: Client, marketIdProvider: UIDProvider, securityIdProvider: UIDProvider,
+class MarketDb(val client: HBaseClient, marketIdProvider: UIDProvider, securityIdProvider: UIDProvider,
                val tradesTable: String, val ordersTable: String, serviceBuilders: Seq[MarketDb => MarketService] = Seq()) extends Service {
 
   val log = LoggerFactory.getLogger(classOf[MarketDb])
@@ -130,7 +130,7 @@ class MarketDb(val client: Client, marketIdProvider: UIDProvider, securityIdProv
     val promise = new Promise[Boolean]
     try {
       import AsyncHBase._
-      val deferred = client().put(putRequest)
+      val deferred = client.put(putRequest)
       deferred.addCallback {(_: Any) =>promise.setValue(true)}
       deferred.addErrback {(e: Throwable) => promise.setException(e)}
     } catch {
@@ -147,7 +147,7 @@ class MarketDb(val client: Client, marketIdProvider: UIDProvider, securityIdProv
     val promise = new Promise[Boolean]
     try {
       import AsyncHBase._
-      val deferred = client().put(putRequest)
+      val deferred = client.put(putRequest)
       deferred.addCallback {(_: Any) =>promise.setValue(true)}
       deferred.addErrback {(e: Throwable) => promise.setException(e)}
     } catch {

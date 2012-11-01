@@ -22,7 +22,7 @@ class MarketDbConfig extends ServerConfig[MarketDb] {
     log.info("Build new marketDB configuration")
     log.debug("ZooKeeper quorum = " + zookeeperQuorum + "; Trades table = " + tradesTable + "; Orders table = " + ordersTable + "; UID table = " + uidTable)
 
-    val client = new Client(zookeeperQuorum)
+    val client = new HBaseClient(zookeeperQuorum)
 
     import MarketDb._
     val marketUIDProvider = new UIDProvider(client, new UIDCache, ByteArray(uidTable), ByteArray("Market"), MarketIdWidth)
