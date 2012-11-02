@@ -4,7 +4,9 @@ import org.joda.time.DateTime
 import sbinary.Operations._
 import sbinary.{Output, Input, Format, DefaultProtocol}
 
-sealed trait MarketPayload
+sealed trait MarketPayload {
+  def time: DateTime
+}
 
 case class TradePayload(market: Market, security: Security,
                         tradeId: Long,

@@ -1,9 +1,7 @@
 package com.ergodicity.marketdb.iteratee
 
 import com.ergodicity.marketdb.TimeSeries.Qualifier
-import com.ergodicity.marketdb.model.Market
-import com.ergodicity.marketdb.model.Security
-import com.ergodicity.marketdb.model.TradePayload
+import com.ergodicity.marketdb.model._
 import com.ergodicity.marketdb.{TimeSeries, ByteArray}
 import java.lang.IllegalStateException
 import java.util.concurrent.{TimeUnit, CountDownLatch}
@@ -17,6 +15,12 @@ import org.powermock.modules.junit4.PowerMockRunner
 import org.scala_tools.time.Implicits._
 import org.scalatest.Assertions._
 import org.slf4j.LoggerFactory
+import com.ergodicity.marketdb.model.Market
+import com.ergodicity.marketdb.TimeSeries.Qualifier
+import scala.Some
+import com.ergodicity.marketdb.model.Security
+import com.ergodicity.marketdb.model.TradePayload
+import com.ergodicity.marketdb.model.OrderPayload
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -57,9 +61,10 @@ class TimeSeriesEnumeratorTest {
     when(scanner.nextRows()).thenThrow(new IllegalStateException)
 
     val trades = new TimeSeriesEnumerator(timeSeries)
-    trades.enumerate(counter[TradePayload]).map(_.run) onSuccess(_ => assert(ShouldNeverHappen)) onFailure {case e =>
-      assert(e.isInstanceOf[IllegalStateException])
-      latch.countDown()
+    trades.enumerate(counter[TradePayload]).map(_.run) onSuccess (_ => assert(ShouldNeverHappen)) onFailure {
+      case e =>
+        assert(e.isInstanceOf[IllegalStateException])
+        latch.countDown()
     }
 
     assert(latch.await(1, TimeUnit.SECONDS))
@@ -108,13 +113,37 @@ class TimeSeriesEnumeratorTest {
 
     val trades = new TimeSeriesEnumerator(timeSeries)
 
-    trades.enumerate(counter[TradePayload]).map(_.run) onSuccess(_ =>assert(ShouldNeverHappen)) onFailure {e =>
-      assert(e.isInstanceOf[HBaseException])
-      latch.countDown()
+    trades.enumerate(counter[TradePayload]).map(_.run) onSuccess (_ => assert(ShouldNeverHappen)) onFailure {
+      e =>
+        assert(e.isInstanceOf[HBaseException])
+        log.info("Iteration error = " + e)
+        latch.countDown()
     }
 
     assert(latch.await(1, TimeUnit.SECONDS))
     verify(scanner).close()
   }
 
+  @Test
+  def testSeq() {
+
+    val time1 = new DateTime()
+    val time2 = time1 + 1.second
+    val time3 = time1 + 2.second
+
+    val order1 = OrderPayload(market, security, 0l, time1, 0, 0, 0, 0, 0, 0, None)
+    val order2 = OrderPayload(market, security, 0l, time2, 0, 0, 0, 0, 0, 0, None)
+    val trade1 = TradePayload(market, security, 0l, 0, 0, time3, true)
+
+    val seq1: Seq[Option[MarketPayload]] = Seq(Some(order1), None, Option(order2), Some(trade1))
+    val seq2: Seq[Option[MarketPayload]] = Seq[Option[MarketPayload]](None, None)
+
+    val ord = Ordering.by((_: MarketPayload).time.getMillis)
+
+    log.info("Ebaka1 = "+seq1.flatten)
+    log.info("Min1 = "+seq1.flatten.reduceOption(ord.min))
+
+    log.info("Ebaka2 = "+seq2.flatten)
+    log.info("Min2 = "+seq2.flatten.reduceOption(ord.min))
+  }
 }

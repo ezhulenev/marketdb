@@ -58,7 +58,7 @@ class TimeSeriesEnumerator[E <: MarketPayload](timeSeries: TimeSeries[E]) {
         case i@Done(_, _) => scanner.close(); Future(i)
         case i@Cont(k) =>
           nextValues.map {
-            case None => Future(k(EOF[E])) //Future(i)
+            case None => System.out.println("EBAKA!!!"); Future(k(EOF[E])) //Future(i)
             case Some(iterator) =>
               val next = iterator.next()
               loop(iterator, k(El(next)))
