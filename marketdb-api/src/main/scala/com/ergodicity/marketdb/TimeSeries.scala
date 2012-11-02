@@ -2,14 +2,14 @@ package com.ergodicity.marketdb
 
 import com.ergodicity.marketdb.model.{Market, Security, MarketPayload}
 import org.joda.time.Interval
-import org.hbase.async.HBaseClient
+import com.ergodicity.marketdb.TimeSeries.Qualifier
 
-class TimeSeries[P <: MarketPayload](val market: Market, val security: Security, val interval: Interval)
-                                    (private[marketdb] val table: Array[Byte], private[marketdb] val startKey: Array[Byte], private[marketdb] val stopKey: Array[Byte]) {
-  def scan(client: HBaseClient) = {
-    val scanner = client.newScanner(table)
-    scanner.setStartKey(startKey)
-    scanner.setStopKey(stopKey)
-    scanner
-  }
+object TimeSeries {
+
+  case class Qualifier(table: Array[Byte], startKey: Array[Byte], stopKey: Array[Byte])
+
+}
+
+class TimeSeries[P <: MarketPayload](val market: Market, val security: Security, val interval: Interval, val qualifier: Qualifier) {
+  override def toString = "TimeSeries(market='" + market + "', security='" + security + "', interval='" + interval + "')"
 }

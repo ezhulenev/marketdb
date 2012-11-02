@@ -12,6 +12,11 @@ import org.scala_tools.time.Implicits._
 import org.scalatest.{WordSpec, GivenWhenThen}
 import org.slf4j.LoggerFactory
 import scala.Predef._
+import com.ergodicity.marketdb.model.Market
+import com.ergodicity.marketdb.model.Security
+import com.ergodicity.marketdb.model.TradePayload
+import com.ergodicity.marketdb.iteratee.MarketDbReader
+import org.mockito.Mockito
 
 class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording {
   override val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
@@ -27,6 +32,9 @@ class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
     val marketDB = runtime.loadRuntimeConfig[MarketDb]()
+
+    implicit val reader = Mockito.mock(classOf[MarketDbReader])
+    Mockito.when(reader.client).thenReturn(marketDB.client)
 
     "should persist new trade" in {
       val payload = TradePayload(market, security, 11l, BigDecimal("111"), 1, time, NoSystem)
@@ -53,7 +61,14 @@ class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
 
       // -- Verify two rows for 1970 Jan 1
       val interval = new DateTime(1970, 01, 01, 0, 0, 0, 0) to new DateTime(1970, 01, 01, 23, 0, 0, 0)
-      val scanner = marketDB.trades(market, security, interval) map(_.scan(marketDB.client)) apply()
+      val timeSeries = marketDB.trades(market, security, interval).apply()
+
+      val scanner = {
+        val scanner = marketDB.client.newScanner(timeSeries.qualifier.table)
+        scanner.setStartKey(timeSeries.qualifier.startKey)
+        scanner.setStopKey(timeSeries.qualifier.stopKey)
+        scanner
+      }
 
       val rows = scanner.nextRows().joinUninterruptibly()
       log.info("ROWS Jan 1: " + rows)
@@ -76,7 +91,14 @@ class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
     "should return null if no trades exists" in {
       // -- Verify two rows for 1970 Feb 1
       val interval = new DateTime(1970, 02, 01, 0, 0, 0, 0) to new DateTime(1970, 02, 01, 23, 0, 0, 0)
-      val scanner = marketDB.trades(market, security, interval) map(_.scan(marketDB.client)) apply()
+      val timeSeries = marketDB.trades(market, security, interval).apply()
+
+      val scanner = {
+        val scanner = marketDB.client.newScanner(timeSeries.qualifier.table)
+        scanner.setStartKey(timeSeries.qualifier.startKey)
+        scanner.setStopKey(timeSeries.qualifier.stopKey)
+        scanner
+      }
 
       val rows = scanner.nextRows().joinUninterruptibly()
       log.info("ROWS Feb1 1: " + rows)

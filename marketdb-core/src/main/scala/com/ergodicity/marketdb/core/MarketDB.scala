@@ -10,6 +10,7 @@ import com.twitter.util.{Promise, Future}
 import org.hbase.async.{HBaseClient, PutRequest}
 import org.joda.time.Interval
 import org.slf4j.LoggerFactory
+import com.ergodicity.marketdb.TimeSeries.Qualifier
 
 trait MarketService extends Service
 
@@ -55,7 +56,8 @@ class MarketDb(val client: HBaseClient, marketIdProvider: UIDProvider, securityI
         val startKey = TradeRow(tuple._1.id, tuple._2.id, interval.getStart)
         val stopKey = TradeRow(tuple._1.id, tuple._2.id, interval.getEnd) ++ ByteArray(0)
 
-        new TimeSeries[TradePayload](market, security, interval)(ByteArray(tradesTable).toArray, startKey.toArray, stopKey.toArray)
+        val qualifier = Qualifier(ByteArray(tradesTable).toArray, startKey.toArray, stopKey.toArray)
+        new TimeSeries[TradePayload](market, security, interval, qualifier)
     }
   }
 
@@ -71,7 +73,8 @@ class MarketDb(val client: HBaseClient, marketIdProvider: UIDProvider, securityI
         val startKey = OrderRow(tuple._1.id, tuple._2.id, interval.getStart)
         val stopKey = OrderRow(tuple._1.id, tuple._2.id, interval.getEnd) ++ ByteArray(0)
 
-        new TimeSeries[OrderPayload](market, security, interval)(ByteArray(ordersTable).toArray, startKey.toArray, stopKey.toArray)
+        val qualifier = Qualifier(ByteArray(ordersTable).toArray, startKey.toArray, stopKey.toArray)
+        new TimeSeries[OrderPayload](market, security, interval, qualifier)
     }
   }
 

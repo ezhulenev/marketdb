@@ -1,8 +1,10 @@
 package com.ergodicity.marketdb.iteratee
 
+import com.ergodicity.marketdb.TimeSeries.Qualifier
 import com.ergodicity.marketdb.model.Market
 import com.ergodicity.marketdb.model.Security
 import com.ergodicity.marketdb.model.TradePayload
+import com.ergodicity.marketdb.{TimeSeries, ByteArray}
 import java.lang.IllegalStateException
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import org.hbase.async.{HBaseException, HBaseClient, Scanner}
@@ -15,8 +17,6 @@ import org.powermock.modules.junit4.PowerMockRunner
 import org.scala_tools.time.Implicits._
 import org.scalatest.Assertions._
 import org.slf4j.LoggerFactory
-import scala.Some
-import com.ergodicity.marketdb.{TimeSeries, ByteArray}
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -34,23 +34,27 @@ class TimeSeriesEnumeratorTest {
   val now = new DateTime
   val interval = now.withHourOfDay(0) to now.withHourOfDay(23)
 
+  val qualifier = Qualifier(ByteArray("table").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+
   implicit val marketId = (_: Market) => ByteArray(0)
   implicit val securityId = (_: Security) => ByteArray(1)
 
-  // Implicit parameter for TimeSeriesEnumerator.enumerate
-  implicit val client = mock(classOf[HBaseClient])
-
   import MarketIteratees._
   import com.ergodicity.marketdb.model.TradeProtocol._
-
 
   @Test
   def testOpenScannerFailed() {
     val ShouldNeverHappen = false
     val latch = new CountDownLatch(1)
 
-    val timeSeries = mock(classOf[TimeSeries[TradePayload]])
-    when(timeSeries.scan(client)).thenThrow(new IllegalStateException)
+    val timeSeries = new TimeSeries[TradePayload](market, security, interval, qualifier)
+
+    implicit val reader = mock(classOf[MarketDbReader])
+    val client = mock(classOf[HBaseClient])
+    val scanner = mock(classOf[Scanner])
+    when(reader.client).thenReturn(client)
+    when(client.newScanner(qualifier.table)).thenReturn(scanner)
+    when(scanner.nextRows()).thenThrow(new IllegalStateException)
 
     val trades = new TimeSeriesEnumerator(timeSeries)
     trades.enumerate(counter[TradePayload]).map(_.run) onSuccess(_ => assert(ShouldNeverHappen)) onFailure {case e =>
@@ -67,8 +71,13 @@ class TimeSeriesEnumeratorTest {
     val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, NoSystem)
     val scanner = ScannerMock(payloads)
 
-    val timeSeries = mock(classOf[TimeSeries[TradePayload]])
-    when(timeSeries.scan(client)).thenReturn(scanner)
+    val timeSeries = new TimeSeries[TradePayload](market, security, interval, qualifier)
+
+    // -- Prepare mocks
+    implicit val reader = mock(classOf[MarketDbReader])
+    val client = mock(classOf[HBaseClient])
+    when(reader.client).thenReturn(client)
+    when(client.newScanner(qualifier.table)).thenReturn(scanner)
 
     val trades = new TimeSeriesEnumerator(timeSeries)
     val iterv = trades.enumerate(counter[TradePayload])
@@ -89,9 +98,13 @@ class TimeSeriesEnumeratorTest {
     val err = mock(classOf[HBaseException])
     val scanner = ScannerMock(payloads, failOnBatch = Some(3, err))
 
+    val timeSeries = new TimeSeries[TradePayload](market, security, interval, qualifier)
 
-    val timeSeries = mock(classOf[TimeSeries[TradePayload]])
-    when(timeSeries.scan(client)).thenReturn(scanner)
+    // -- Prepare mocks
+    implicit val reader = mock(classOf[MarketDbReader])
+    val client = mock(classOf[HBaseClient])
+    when(reader.client).thenReturn(client)
+    when(client.newScanner(qualifier.table)).thenReturn(scanner)
 
     val trades = new TimeSeriesEnumerator(timeSeries)
 

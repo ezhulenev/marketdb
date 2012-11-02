@@ -140,8 +140,7 @@ object MarketDBBuild extends Build {
 object Dependencies {
   import Dependency._
 
-  val api = Seq(finagleCore, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime) ++
-    Seq(asyncHBase, stumbleuponAsync, zookeeper)
+  val api = Seq(finagleCore, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
 
   val app = Seq() ++ Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 
@@ -149,7 +148,8 @@ object Dependencies {
     Seq(asyncHBase, stumbleuponAsync, zookeeper) ++
     Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 
-  val iteratee = Seq(scalaz) ++ Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
+  val iteratee = Seq(scalaz) ++ Seq(asyncHBase, stumbleuponAsync, zookeeper) ++
+    Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 
   val loader = Seq(ostrich, finagleCore, finagleKestrel, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz) ++
     Seq(Test.scalatest, Test.mockito)
@@ -224,7 +224,7 @@ object Dependency {
 
   object Test {
     val junit          = "junit"                       % "junit"                   % V.Junit        % "test" // Common Public License 1.0
-    val mockito        = "org.mockito"                 % "mockito-all"             % V.Mockito      % "test" // MIT
+    val mockito        = "org.mockito"                 % "mockito-all"             % V.Mockito      % "test,it" // MIT
     val powermockApi   = "org.powermock"               % "powermock-api-mockito"   % V.Powermock    % "test"
     val powermockJUnit = "org.powermock"               % "powermock-module-junit4" % V.Powermock    % "test"
     val scalatest      = "org.scalatest"              %% "scalatest"               % V.Scalatest    % "it,test" // ApacheV2

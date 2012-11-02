@@ -19,7 +19,12 @@ class TimeSeriesEnumerator[E <: MarketPayload](timeSeries: TimeSeries[E]) {
     def call(p: T) = f(p)
   }
 
-  def openScanner(implicit client: HBaseClient): Future[Scanner] = Future(timeSeries.scan(client))
+  def openScanner(implicit client: HBaseClient): Future[Scanner] = {
+    val scanner = client.newScanner(timeSeries.qualifier.table)
+    scanner.setStartKey(timeSeries.qualifier.startKey)
+    scanner.setStopKey(timeSeries.qualifier.stopKey)
+    Future(scanner)
+  }
 
   def scan[A](scanner: Scanner, it: IterV[E, A])(implicit reads: Reads[E]): Future[IterV[E, A]] = {
 
@@ -79,8 +84,8 @@ class TimeSeriesEnumerator[E <: MarketPayload](timeSeries: TimeSeries[E]) {
       _ <- fin(a)
     } yield c
 
-  def enumerate[A](i: IterV[E, A])(implicit reads: Reads[E], client: HBaseClient): Future[IterV[E, A]] =
-    bracket(openScanner,
+  def enumerate[A](i: IterV[E, A])(implicit reads: Reads[E], reader: MarketDbReader): Future[IterV[E, A]] =
+    bracket(openScanner(reader.client),
       closeScanner(_: Scanner),
       scan(_: Scanner, i))
 }

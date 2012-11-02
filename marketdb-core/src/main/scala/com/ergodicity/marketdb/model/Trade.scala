@@ -5,8 +5,8 @@ import com.ergodicity.marketdb.event.{TradeSerialized, TradeEnriched, TradeRecei
 import Behaviors._
 import sbinary._
 import Operations._
-import com.ergodicity.marketdb.core.MarketDb
 import org.joda.time.DateTime
+import com.ergodicity.marketdb.core.MarketDb
 
 object Trade extends AggregateFactory[Trade, TradeEvent] {
 
@@ -47,12 +47,11 @@ case class DraftTrade(payload: TradePayload) extends Trade {
 case class EnrichedTrade(marketId: ByteArray, securityId: ByteArray, payload: TradePayload) extends Trade {
 
   def serializeTrade(): Behavior[BinaryTrade] = {
-    import MarketDb._
     import TradeProtocol._
 
-    guard(marketId.length == MarketIdWidth, "Market Id width '" + marketId.length + "' not equals to expected: " + MarketIdWidth) flatMap {
+    guard(marketId.length == MarketDb.MarketIdWidth, "Market Id width '" + marketId.length + "' not equals to expected: " + MarketDb.MarketIdWidth) flatMap {
       _ =>
-        guard(securityId.length == SecurityIdWidth, "Code width '" + securityId.length + "' not equals to expected: " + SecurityIdWidth) flatMap {
+        guard(securityId.length == MarketDb.SecurityIdWidth, "Code width '" + securityId.length + "' not equals to expected: " + MarketDb.SecurityIdWidth) flatMap {
           _ =>
             val row = TradeRow(marketId, securityId, payload.time)
             val qualifier = ByteArray(payload.tradeId)
