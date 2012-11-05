@@ -1,7 +1,7 @@
 package integration.ergodicity.marketdb.iteratee
 
 import com.ergodicity.marketdb.core.MarketDb
-import com.ergodicity.marketdb.iteratee.{MarketDbReader, TimeSeriesEnumerator, MarketIteratees}
+import com.ergodicity.marketdb.iteratee.{TimeSeriesEnumerator, MarketDbReader, MarketIteratees}
 import com.ergodicity.marketdb.model.Market
 import com.ergodicity.marketdb.model.Security
 import com.ergodicity.marketdb.model.TradePayload
@@ -50,7 +50,7 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       import MarketIteratees._
 
       val tradeSeries = marketDB.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
-      val enumerator = new TimeSeriesEnumerator(tradeSeries)
+      val enumerator = TimeSeriesEnumerator(tradeSeries)
 
       val cnt = counter[TradePayload]
 

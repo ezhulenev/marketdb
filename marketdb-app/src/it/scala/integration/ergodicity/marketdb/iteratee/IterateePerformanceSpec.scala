@@ -1,7 +1,7 @@
 package integration.ergodicity.marketdb.iteratee
 
 import com.ergodicity.marketdb.core.MarketDb
-import com.ergodicity.marketdb.iteratee.{MarketDbReader, TimeSeriesEnumerator}
+import com.ergodicity.marketdb.iteratee.{TimeSeriesEnumerator, MarketDbReader}
 import com.ergodicity.marketdb.model.{TradeProtocol, Market, Security, TradePayload}
 import com.twitter.ostrich.admin.RuntimeEnvironment
 import com.twitter.util.Duration
@@ -36,7 +36,7 @@ class IterateePerformanceSpec extends WordSpec with GivenWhenThen {
 
       import com.ergodicity.marketdb.iteratee.MarketIteratees._
       val tradeSeries = marketDB.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
-      val enumerator = new TimeSeriesEnumerator(tradeSeries)
+      val enumerator = TimeSeriesEnumerator(tradeSeries)
       val cnt = counter[TradePayload]
 
       val iter = enumerator.enumerate(cnt).map(_.run)

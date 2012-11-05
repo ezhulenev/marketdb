@@ -10,16 +10,16 @@ import sbinary.Operations._
 import sbinary.Reads
 import scala.Some
 import scala.collection.JavaConversions._
-import scalaz.IterV
+import scalaz.{NonEmptyList, IterV}
 import scalaz.IterV.{El, EOF, Cont, Done}
 
-class MultipleTimeSeriesEnumerator[E <: MarketPayload](timeSeries: Seq[TimeSeries[E]]) {
+class MultipleTimeSeriesEnumerator[E <: MarketPayload] private[iteratee](timeSeries: NonEmptyList[TimeSeries[E]]) {
 
   implicit def f2callback[R, T](f: T => R) = new Callback[R, T] {
     def call(p: T) = f(p)
   }
 
-  def openScanners(implicit client: HBaseClient): Future[Seq[Scanner]] = {
+  def openScanners(implicit client: HBaseClient): Future[NonEmptyList[Scanner]] = {
     val scanners = timeSeries.map {
       ts =>
         val scanner = client.newScanner(ts.qualifier.table)
@@ -31,7 +31,7 @@ class MultipleTimeSeriesEnumerator[E <: MarketPayload](timeSeries: Seq[TimeSerie
     Future(scanners)
   }
 
-  def scan[A](scanners: Seq[Scanner], it: IterV[E, A])(implicit reads: Reads[E]): Future[IterV[E, A]] = {
+  def scan[A](scanners: NonEmptyList[Scanner], it: IterV[E, A])(implicit reads: Reads[E]): Future[IterV[E, A]] = {
 
     def nextValuesFromUnderlyingScanner(scanner: Scanner): Future[Option[Stream[E]]] = {
       val promise = new Promise[Option[Stream[E]]]
@@ -52,40 +52,39 @@ class MultipleTimeSeriesEnumerator[E <: MarketPayload](timeSeries: Seq[TimeSerie
       promise
     }
 
-    def loop(data: Seq[(Scanner, Option[Stream[E]])], iterv: IterV[E, A]): Future[IterV[E, A]] = {
+    def loop(data: NonEmptyList[(Scanner, Stream[E])], iterv: IterV[E, A]): Future[IterV[E, A]] = {
 
-      val prefetchedStreams = Future.collect(data.map {
-        case (scanner, Some(stream)) if (stream.isEmpty) =>
-          nextValuesFromUnderlyingScanner(scanner)
-
-        case (scanner, Some(stream)) if (!stream.isEmpty) =>
-          Future(Some(stream))
-
-        case (scanner, None) => Future(None)
+      // Check that all streams has data
+      val fetchedStreams = Future.collect(data.list.map {
+        case (scanner, stream) if (stream.isEmpty) => nextValuesFromUnderlyingScanner(scanner).map(_.map((scanner, _)))
+        case (scanner, stream) if (!stream.isEmpty) => Future(Some(scanner, stream))
       })
 
-      prefetchedStreams onFailure (_ => scanners.map(_.close()))
+      fetchedStreams onFailure (_ => scanners.map(_.close()))
 
-
-
+      // Process iteration step
       iterv match {
         case i@Done(_, _) => scanners.map(_.close()); Future(i)
         case i@Cont(k) =>
-          Future(k(EOF[E]))
-          /*prefetchedStreams.map(_.flatten.map(_.head).reduceOption(_ min _)) match {
-            case None => Future(k(EOF[E])) //Future(i)
-            case Some(payload) =>
-              val next = iterator.next()
-              loop(payload, k(El(payload)))
-          }.flatten*/
+          fetchedStreams.map(_.flatten) flatMap {
+            fetched =>
+            // Find minimum pair of (Scanner, Stream) by head element
+              val ord = Ordering.by((_: (Scanner, Stream[E]))._2.head.time.getMillis)
+              fetched.reduceOption(ord.min) match {
+                case None => Future(k(EOF[E]))
+                case Some((scanner, stream)) =>
+                  val rest = NonEmptyList((scanner, stream.tail), fetched.filterNot(_._1 == scanner): _*)
+                  loop(rest, k(El(stream.head)))
+              }
+          }
       }
     }
 
-    loop(scanners map ((_, Some(Stream.empty))), it)
+    loop(scanners map ((_, Stream.empty)), it)
   }
 
-  def closeScanner(scanners: Seq[Scanner]): Future[Unit] = {
-    val promises = scanners.map {
+  def closeScanner(scanners: NonEmptyList[Scanner]): Future[Unit] = {
+    val promises = scanners.list.map {
       scanner =>
         val promise = new Promise[Unit]
         val deferred = scanner.close()
@@ -106,6 +105,6 @@ class MultipleTimeSeriesEnumerator[E <: MarketPayload](timeSeries: Seq[TimeSerie
 
   def enumerate[A](i: IterV[E, A])(implicit reads: Reads[E], reader: MarketDbReader): Future[IterV[E, A]] =
     bracket(openScanners(reader.client),
-      closeScanner(_: Seq[Scanner]),
-      scan(_: Seq[Scanner], i))
+      closeScanner(_: NonEmptyList[Scanner]),
+      scan(_: NonEmptyList[Scanner], i))
 }

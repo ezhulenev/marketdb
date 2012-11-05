@@ -1,7 +1,5 @@
 package com.ergodicity.marketdb.iteratee
 
-import com.ergodicity.marketdb.TimeSeries.Qualifier
-import com.ergodicity.marketdb.model._
 import com.ergodicity.marketdb.{TimeSeries, ByteArray}
 import java.lang.IllegalStateException
 import java.util.concurrent.{TimeUnit, CountDownLatch}
@@ -20,14 +18,14 @@ import com.ergodicity.marketdb.TimeSeries.Qualifier
 import scala.Some
 import com.ergodicity.marketdb.model.Security
 import com.ergodicity.marketdb.model.TradePayload
-import com.ergodicity.marketdb.model.OrderPayload
+import scalaz.NonEmptyList
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
   "com.sun.org.apache.xerces.internal.jaxp.*", "ch.qos.logback.*", "org.slf4j.*"))
 @PrepareForTest(Array(classOf[Scanner], classOf[HBaseClient]))
-class TimeSeriesEnumeratorTest {
-  val log = LoggerFactory.getLogger(classOf[TimeSeriesEnumeratorTest])
+class MultipleTimeSeriesEnumeratorTest {
+  val log = LoggerFactory.getLogger(classOf[MultipleTimeSeriesEnumeratorTest])
 
   val NoSystem = true
 
@@ -47,7 +45,7 @@ class TimeSeriesEnumeratorTest {
   import com.ergodicity.marketdb.model.TradeProtocol._
 
   @Test
-  def testOpenScannerFailed() {
+  def testScannerFailure() {
     val ShouldNeverHappen = false
     val latch = new CountDownLatch(1)
 
@@ -60,7 +58,7 @@ class TimeSeriesEnumeratorTest {
     when(client.newScanner(qualifier.table)).thenReturn(scanner)
     when(scanner.nextRows()).thenThrow(new IllegalStateException)
 
-    val trades = new TimeSeriesEnumerator(timeSeries)
+    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList(timeSeries))
     trades.enumerate(counter[TradePayload]).map(_.run) onSuccess (_ => assert(ShouldNeverHappen)) onFailure {
       case e =>
         assert(e.isInstanceOf[IllegalStateException])
@@ -70,8 +68,9 @@ class TimeSeriesEnumeratorTest {
     assert(latch.await(1, TimeUnit.SECONDS))
   }
 
+
   @Test
-  def testIterateOverScanner() {
+  def testIterateOverSingleScanner() {
     val Count = 100
     val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time, NoSystem)
     val scanner = ScannerMock(payloads)
@@ -84,7 +83,7 @@ class TimeSeriesEnumeratorTest {
     when(reader.client).thenReturn(client)
     when(client.newScanner(qualifier.table)).thenReturn(scanner)
 
-    val trades = new TimeSeriesEnumerator(timeSeries)
+    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList(timeSeries))
     val iterv = trades.enumerate(counter[TradePayload])
     val count = iterv.map(_.run)()
     log.info("Count: " + count)
@@ -94,7 +93,7 @@ class TimeSeriesEnumeratorTest {
   }
 
   @Test
-  def testIterationIsBroken() {
+  def testSingleScannerIterationIsBroken() {
     val ShouldNeverHappen = false
     val latch = new CountDownLatch(1)
 
@@ -111,7 +110,7 @@ class TimeSeriesEnumeratorTest {
     when(reader.client).thenReturn(client)
     when(client.newScanner(qualifier.table)).thenReturn(scanner)
 
-    val trades = new TimeSeriesEnumerator(timeSeries)
+    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList(timeSeries))
 
     trades.enumerate(counter[TradePayload]).map(_.run) onSuccess (_ => assert(ShouldNeverHappen)) onFailure {
       e =>
@@ -125,25 +124,86 @@ class TimeSeriesEnumeratorTest {
   }
 
   @Test
-  def testSeq() {
+  def testIterationOverMultipleScanners() {
+    val Count = 100
 
-    val time1 = new DateTime()
-    val time2 = time1 + 1.second
-    val time3 = time1 + 2.second
+    val scanner1 = {
+      val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time + i.second, NoSystem)
+      ScannerMock(payloads)
+    }
 
-    val order1 = OrderPayload(market, security, 0l, time1, 0, 0, 0, 0, 0, 0, None)
-    val order2 = OrderPayload(market, security, 0l, time2, 0, 0, 0, 0, 0, 0, None)
-    val trade1 = TradePayload(market, security, 0l, 0, 0, time3, true)
+    val scanner2 = {
+      val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("222"), 1, time + 500.millis + i.second, NoSystem)
+      ScannerMock(payloads)
+    }
 
-    val seq1: Seq[Option[MarketPayload]] = Seq(Some(order1), None, Option(order2), Some(trade1))
-    val seq2: Seq[Option[MarketPayload]] = Seq[Option[MarketPayload]](None, None)
+    val qualifier1 = Qualifier(ByteArray("table1").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+    val qualifier2 = Qualifier(ByteArray("table2").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
 
-    val ord = Ordering.by((_: MarketPayload).time.getMillis)
+    val timeSeries1 = new TimeSeries[TradePayload](market, security, interval, qualifier1)
+    val timeSeries2 = new TimeSeries[TradePayload](market, security, interval, qualifier2)
 
-    log.info("Ebaka1 = "+seq1.flatten)
-    log.info("Min1 = "+seq1.flatten.reduceOption(ord.min))
+    // -- Prepare mocks
+    implicit val reader = mock(classOf[MarketDbReader])
+    val client = mock(classOf[HBaseClient])
+    when(reader.client).thenReturn(client)
+    when(client.newScanner(qualifier1.table)).thenReturn(scanner1)
+    when(client.newScanner(qualifier2.table)).thenReturn(scanner2)
 
-    log.info("Ebaka2 = "+seq2.flatten)
-    log.info("Min2 = "+seq2.flatten.reduceOption(ord.min))
+    // -- Iterate over time series
+    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList(timeSeries1, timeSeries2))
+    val iterv = trades.enumerate(counter[TradePayload])
+    val count = iterv.map(_.run)()
+    log.info("Count: " + count)
+    assert(count == 2 * Count)
+
+    verify(scanner1).close()
+    verify(scanner2).close()
+  }
+
+  @Test
+  def testIterationOverMultipleScannersWithOneBroken() {
+    val ShouldNeverHappen = false
+    val latch = new CountDownLatch(1)
+
+    val Count = 100
+
+    val scanner1 = {
+      val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time + i.second, NoSystem)
+      val err = mock(classOf[HBaseException])
+      ScannerMock(payloads, failOnBatch = Some(3, err))
+    }
+
+    val scanner2 = {
+      val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("222"), 1, time + 500.millis + i.second, NoSystem)
+      ScannerMock(payloads)
+    }
+
+    val qualifier1 = Qualifier(ByteArray("table1").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+    val qualifier2 = Qualifier(ByteArray("table2").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+
+    val timeSeries1 = new TimeSeries[TradePayload](market, security, interval, qualifier1)
+    val timeSeries2 = new TimeSeries[TradePayload](market, security, interval, qualifier2)
+
+    // -- Prepare mocks
+    implicit val reader = mock(classOf[MarketDbReader])
+    val client = mock(classOf[HBaseClient])
+    when(reader.client).thenReturn(client)
+    when(client.newScanner(qualifier1.table)).thenReturn(scanner1)
+    when(client.newScanner(qualifier2.table)).thenReturn(scanner2)
+
+    // -- Iterate over time series
+    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList(timeSeries1, timeSeries2))
+    trades.enumerate(counter[TradePayload]).map(_.run) onSuccess (_ => assert(ShouldNeverHappen)) onFailure {
+      e =>
+        assert(e.isInstanceOf[HBaseException])
+        log.info("Iteration error = " + e)
+        latch.countDown()
+    }
+
+    assert(latch.await(1, TimeUnit.SECONDS))
+
+    verify(scanner1).close()
+    verify(scanner2).close()
   }
 }
