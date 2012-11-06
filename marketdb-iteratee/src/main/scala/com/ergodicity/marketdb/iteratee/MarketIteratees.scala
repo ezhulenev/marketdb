@@ -20,6 +20,22 @@ object MarketIteratees {
     Cont(first)
   }
 
+  def sequencer[E]: IterV[E, Seq[E]] = {
+    def step(is: Seq[E], e: E)(s: Input[E]): IterV[E, Seq[E]] = {
+      s(el = e2 => Cont(step(is :+ e2, e2)),
+        empty = Cont(step(is :+ e, e)),
+        eof = Done(is, EOF[E]))
+    }
+
+    def first(s: Input[E]): IterV[E, Seq[E]] = {
+      s(el = e1 => Cont(step(Seq(e1), e1)),
+        empty = Cont(first),
+        eof = Done(Seq.empty[E], EOF[E]))
+    }
+
+    Cont(first)
+  }
+
   def printer[E](log: org.slf4j.Logger): IterV[E, Boolean] = {
     def step(is: Boolean, e: E)(s: Input[E]): IterV[E, Boolean] = {
       log.info("STEP: " + e)

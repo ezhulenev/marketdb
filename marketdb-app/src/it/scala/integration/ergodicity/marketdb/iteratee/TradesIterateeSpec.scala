@@ -14,8 +14,12 @@ import org.joda.time.DateTime
 import org.mockito.Mockito
 import org.scala_tools.time.Implicits._
 import org.scalatest.{WordSpec, GivenWhenThen}
+import org.slf4j.LoggerFactory
+import scalaz.NonEmptyList
 
 class TradesIterateeSpec extends WordSpec with GivenWhenThen {
+  val log = LoggerFactory.getLogger(classOf[TradesIterateeSpec])
+
   val NoSystem = true
 
   val market = Market("RTS")
@@ -32,8 +36,8 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
     Mockito.when(reader.client).thenReturn(marketDB.client)
 
     "should persist new trades iterate over them with MarketIteratee" in {
-      val time1 = new DateTime(1970, 01, 05, 1, 0, 0, 0)
-      val time2 = new DateTime(1970, 01, 05, 1, 0, 1, 0)
+      val time1 = new DateTime(1972, 01, 05, 1, 0, 0, 0)
+      val time2 = new DateTime(1972, 01, 05, 1, 0, 1, 0)
 
       val payload1 = TradePayload(market, security, 111l, BigDecimal("111"), 1, time1, NoSystem)
       val payload2 = TradePayload(market, security, 112l, BigDecimal("112"), 1, time2, NoSystem)
@@ -44,8 +48,8 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       // Wait for trades persisted
       Future.join(List(f1, f2))()
 
-      // -- Verify two rows for 1970 Jan 5
-      val interval = new DateTime(1970, 01, 05, 0, 0, 0, 0) to new DateTime(1970, 01, 05, 23, 0, 0, 0)
+      // -- Verify two rows for 1972 Jan 5
+      val interval = new DateTime(1972, 01, 05, 0, 0, 0, 0) to new DateTime(1972, 01, 05, 23, 0, 0, 0)
 
       import MarketIteratees._
 
@@ -58,6 +62,36 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       val count = iter()
 
       assert(count == 2)
+    }
+
+    "should persist trades and iterate over them for multiple securities" in {
+      val interval = new DateTime(1972, 01, 05, 0, 0, 0, 0) to new DateTime(1972, 01, 05, 23, 0, 0, 0)
+      val baseTime = new DateTime(1972, 01, 05, 1, 0, 0, 0)
+
+      val SecuritiesCount = 10
+      val TradeCount = 10
+
+      val securities = (1 to SecuritiesCount) map (i => (i, Security("Security#" + i)))
+
+      val payloads = securities.flatMap {
+        case (secIdx, sec) =>
+          (1 to TradeCount) map (i => TradePayload(market, sec, 100l + i, 100l + i, 1, baseTime + i.seconds + secIdx.millis, NoSystem))
+      }
+
+      // Wait for trades persisted
+      Future.join(payloads.map(marketDB.addTrade(_)))()
+
+      import MarketIteratees._
+      val tradeSeries = Future.collect(securities.map(sec => marketDB.trades(market, sec._2, interval))).apply()
+      log.info("Time series = " + tradeSeries)
+
+      val enumerator = TimeSeriesEnumerator(NonEmptyList(tradeSeries.head, tradeSeries.tail: _*))
+      val iterv = sequencer[TradePayload]
+
+      val iter = enumerator.enumerate(iterv).map(_.run)
+      val result = iter()
+
+      assert(result.size == payloads.size, "actual size = " + result.size + ", expected = " + payloads.size)
     }
   }
 }
