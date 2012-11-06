@@ -2,7 +2,7 @@ import com.ergodicity.marketdb.loader.util.BatchSettings
 import com.ergodicity.marketdb.loader.{KestrelLoaderConfig, KestrelSettings, RtsTradeLoader}
 import java.io.File
 
-new KestrelLoaderConfig(KestrelSettings("localhost", 22133, "trades", 10), BatchSettings(100, Some(1000))) {
+new KestrelLoaderConfig(KestrelSettings("localhost", 22133, "trades", 10), BatchSettings(100, Some(300000))) {
   admin.httpPort = 10000
 
   val dir = new File("C:\\Dropbox\\Dropbox\\rts")

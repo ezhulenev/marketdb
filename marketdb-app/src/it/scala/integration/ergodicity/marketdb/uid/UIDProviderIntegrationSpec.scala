@@ -9,8 +9,10 @@ import java.lang.StringBuffer
 import java.util.Random
 import org.scalatest.{WordSpec, GivenWhenThen}
 import org.hbase.async.HBaseClient
+import org.slf4j.LoggerFactory
 
 class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording with EvalSupport {
+  val log = LoggerFactory.getLogger(classOf[UIDProviderIntegrationSpec])
 
   val Characters = "QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890"
   val Kind = "TestKind"

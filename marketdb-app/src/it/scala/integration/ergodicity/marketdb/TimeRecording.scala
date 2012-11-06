@@ -1,9 +1,9 @@
 package integration.ergodicity.marketdb
 
-import org.slf4j.LoggerFactory
+import org.slf4j.Logger
 
-trait TimeRecording {
-  val log = LoggerFactory.getLogger(classOf[TimeRecording])
+
+trait TimeRecording { self: {def log: Logger} =>
 
   protected def recordTime[T](prop: String, f: () => T): T = {
     val start = System.currentTimeMillis()

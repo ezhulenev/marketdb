@@ -1,5 +1,6 @@
 import com.ergodicity.marketdb.core.MarketDb
 import com.ergodicity.marketdb.{MarketDbConfig, KestrelLoader, KestrelConfig}
+import com.twitter.ostrich.admin.config._
 
 new MarketDbConfig {
   admin.httpPort = 9000

@@ -19,7 +19,7 @@ import com.ergodicity.marketdb.iteratee.MarketDbReader
 import org.mockito.Mockito
 
 class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
+  val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
 
   val NoSystem = true
 

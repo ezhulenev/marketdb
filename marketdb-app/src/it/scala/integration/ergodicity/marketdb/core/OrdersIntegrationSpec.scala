@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import scala.Predef._
 
 class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording {
-  override val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
+  val log = LoggerFactory.getLogger(classOf[OrdersIntegrationSpec])
 
   val market = Market("RTS")
   val security = Security("RTS 3.12")
