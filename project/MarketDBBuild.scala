@@ -140,7 +140,7 @@ object MarketDBBuild extends Build {
 object Dependencies {
   import Dependency._
 
-  val api = Seq(finagleCore, sbinary, jodaTime, jodaConvert, slf4jApi, logback, Test.scalatest, scalaTime)
+  val api = Seq(finagleCore, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaTime) ++ Seq(Test.scalatest, Test.mockito)
 
   val app = Seq() ++ Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 
