@@ -17,11 +17,11 @@ class ValidateConfigurationTest extends WordSpec with EvalSupport {
   val eval = new Eval(getConfigTarget(configFile))
   val config = eval[MarketDbConfig](configFile)
 
-  lazy val client = new HBaseClient(config.zookeeperQuorum)
+  lazy val client = new HBaseClient(config.connection.zookeeperQuorum)
 
   "Test configuration" must {
     "should load quorum properties" in {
-      val quorum = config.zookeeperQuorum
+      val quorum = config.connection.zookeeperQuorum
       log.info("Quorum: " + quorum)
 
       assert(quorum != null)

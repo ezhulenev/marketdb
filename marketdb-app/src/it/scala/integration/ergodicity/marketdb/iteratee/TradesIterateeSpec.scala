@@ -1,6 +1,6 @@
 package integration.ergodicity.marketdb.iteratee
 
-import com.ergodicity.marketdb.core.MarketDb
+import com.ergodicity.marketdb.MarketDbApp
 import com.ergodicity.marketdb.iteratee.{TimeSeriesEnumerator, MarketDbReader, MarketIteratees}
 import com.ergodicity.marketdb.model.Market
 import com.ergodicity.marketdb.model.Security
@@ -30,10 +30,10 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
 
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
-    val marketDB = runtime.loadRuntimeConfig[MarketDb]()
+    val marketDBApp = runtime.loadRuntimeConfig[MarketDbApp]()
 
     implicit val reader = Mockito.mock(classOf[MarketDbReader])
-    Mockito.when(reader.client).thenReturn(marketDB.client)
+    Mockito.when(reader.client).thenReturn(marketDBApp.marketDb.client)
 
     "should persist new trades iterate over them with MarketIteratee" in {
       val time1 = new DateTime(1972, 01, 05, 1, 0, 0, 0)
@@ -42,8 +42,8 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       val payload1 = TradePayload(market, security, 111l, BigDecimal("111"), 1, time1, NoSystem)
       val payload2 = TradePayload(market, security, 112l, BigDecimal("112"), 1, time2, NoSystem)
 
-      val f1 = marketDB.addTrade(payload1)
-      val f2 = marketDB.addTrade(payload2)
+      val f1 = marketDBApp.marketDb.addTrade(payload1)
+      val f2 = marketDBApp.marketDb.addTrade(payload2)
 
       // Wait for trades persisted
       Future.join(List(f1, f2))()
@@ -53,7 +53,7 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
 
       import MarketIteratees._
 
-      val tradeSeries = marketDB.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
+      val tradeSeries = marketDBApp.marketDb.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
       val enumerator = TimeSeriesEnumerator(tradeSeries)
 
       val cnt = counter[TradePayload]
@@ -79,10 +79,10 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       }
 
       // Wait for trades persisted
-      Future.join(payloads.map(marketDB.addTrade(_)))()
+      Future.join(payloads.map(marketDBApp.marketDb.addTrade(_)))()
 
       import MarketIteratees._
-      val tradeSeries = Future.collect(securities.map(sec => marketDB.trades(market, sec._2, interval))).apply()
+      val tradeSeries = Future.collect(securities.map(sec => marketDBApp.marketDb.trades(market, sec._2, interval))).apply()
       log.info("Time series = " + tradeSeries)
 
       val enumerator = TimeSeriesEnumerator(NonEmptyList(tradeSeries.head, tradeSeries.tail: _*))

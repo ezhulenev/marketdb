@@ -1,7 +1,7 @@
-import com.ergodicity.marketdb.MarketDbConfig
+import com.ergodicity.marketdb.{Connection, MarketDbConfig}
 
 new MarketDbConfig {
-  zookeeperQuorum = "marketdb-host"
+  connection = Connection("marketdb-host")
   tradesTable = "test-market-trades"
   ordersTable = "test-market-orders"
   uidTable = "test-market-uid"

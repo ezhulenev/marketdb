@@ -8,7 +8,6 @@ import java.io.File
 import java.lang.StringBuffer
 import java.util.Random
 import org.scalatest.{WordSpec, GivenWhenThen}
-import org.hbase.async.HBaseClient
 import org.slf4j.LoggerFactory
 
 class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecording with EvalSupport {
@@ -23,7 +22,8 @@ class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRe
   val eval = new Eval(getConfigTarget(configFile))
   val config = eval[MarketDbConfig](configFile)
 
-  lazy val client = new HBaseClient(config.zookeeperQuorum)
+
+  implicit val connectionBuilder = config.HBaseClientBuilder
 
   "UIDProvider" must {
 
@@ -85,7 +85,7 @@ class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRe
 
   def createNewProvider = {
     val cache = new UIDCache
-    new UIDProvider(client, cache, ByteArray(config.uidTable), ByteArray(Kind), 3)
+    new UIDProvider(config.connection, cache, ByteArray(config.uidTable), ByteArray(Kind), 3)
   }
 
   def generateString(length: Int) = {

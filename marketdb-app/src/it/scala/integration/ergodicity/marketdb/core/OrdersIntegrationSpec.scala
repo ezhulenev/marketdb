@@ -1,7 +1,7 @@
 package integration.ergodicity.marketdb.core
 
 import collection.JavaConversions
-import com.ergodicity.marketdb.core.MarketDb
+import com.ergodicity.marketdb.MarketDbApp
 import com.ergodicity.marketdb.model._
 import com.twitter.ostrich.admin.RuntimeEnvironment
 import com.twitter.util.Future
@@ -25,12 +25,12 @@ class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
 
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
-    val marketDB = runtime.loadRuntimeConfig[MarketDb]()
+    val marketDBApp = runtime.loadRuntimeConfig[MarketDbApp]()
 
     "should persist new order" in {
 
       // Execute
-      val futureReaction = recordTime("Add order", () => marketDB.addOrder(payload))
+      val futureReaction = recordTime("Add order", () => marketDBApp.marketDb.addOrder(payload))
       val reaction = recordTime("Reaction", () => futureReaction.apply())
 
       log.info("order reaction: " + reaction)
@@ -43,18 +43,18 @@ class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
       val payload1 = OrderPayload(market, security, 111l, time1, 100, 101, 1, BigDecimal("111"), 1, 1, None)
       val payload2 = OrderPayload(market, security, 112l, time2, 100, 101, 1, BigDecimal("111"), 1, 1, None)
 
-      val f1 = marketDB.addOrder(payload1)
-      val f2 = marketDB.addOrder(payload2)
+      val f1 = marketDBApp.marketDb.addOrder(payload1)
+      val f2 = marketDBApp.marketDb.addOrder(payload2)
 
       // Wait for orders persisted
       Future.join(List(f1, f2))()
 
       // -- Verify two rows for 1970 Jan 1
       val interval = new DateTime(1970, 01, 01, 0, 0, 0, 0) to new DateTime(1970, 01, 01, 23, 0, 0, 0)
-      val timeSeries = marketDB.orders(market, security, interval).apply()
+      val timeSeries = marketDBApp.marketDb.orders(market, security, interval).apply()
 
       val scanner = {
-        val scanner = marketDB.client.newScanner(timeSeries.qualifier.table)
+        val scanner = marketDBApp.marketDb.client.newScanner(timeSeries.qualifier.table)
         scanner.setStartKey(timeSeries.qualifier.startKey)
         scanner.setStopKey(timeSeries.qualifier.stopKey)
         scanner

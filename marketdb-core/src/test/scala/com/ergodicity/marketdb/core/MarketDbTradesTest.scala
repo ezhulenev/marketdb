@@ -12,10 +12,11 @@ import org.junit.Test
 import org.joda.time.DateTime
 import com.ergodicity.marketdb.uid.{UniqueId, UIDProvider}
 import org.hbase.async._
-import com.ergodicity.marketdb.{HBaseMatchers, ByteArray}
+import com.ergodicity.marketdb.{Connection, HBaseMatchers, ByteArray}
 import com.ergodicity.marketdb.model._
 import com.twitter.util.Future
 import org.scalatest.Assertions._
+import com.ergodicity.marketdb.core.MarketDb.{ClientBuilder, Tables, UIDProviders}
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -36,10 +37,14 @@ class MarketDbTradesTest extends HBaseMatchers {
   // Prepare mocks for testing
 
   val client = mock(classOf[HBaseClient])
+  val connection = mock(classOf[Connection])
+  implicit object HBaseClientBuilder extends ClientBuilder {
+    def apply(connection: Connection) = client
+  }
   val marketUidProvider = mock(classOf[UIDProvider])
   val securityUidProvider = mock(classOf[UIDProvider])
 
-  val marketDb = new MarketDb(client, marketUidProvider, securityUidProvider, tradesTable, ordersTable)
+  val marketDb = new MarketDb(connection, UIDProviders(marketUidProvider, securityUidProvider), Tables(tradesTable, ordersTable))
 
 
   @Test

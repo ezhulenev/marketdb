@@ -1,9 +1,12 @@
 import com.ergodicity.marketdb.core.MarketDb
 import com.ergodicity.marketdb.{MarketDbConfig, KestrelLoader, KestrelConfig}
 import com.twitter.ostrich.admin.config._
+import java.net.InetSocketAddress
 
 new MarketDbConfig {
   admin.httpPort = 9000
+
+  socketAddress = Some(new InetSocketAddress(10333))
 
   tradesTable = "test-market-trades"
   ordersTable = "test-market-orders"

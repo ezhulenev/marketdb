@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory
 import scala.Predef._
 import org.mockito.Mockito
 import integration.ergodicity.marketdb.TimeRecording
+import com.ergodicity.marketdb.MarketDbApp
 
 class IterateePerformanceSpec extends WordSpec with GivenWhenThen with TimeRecording {
   val log = LoggerFactory.getLogger(classOf[IterateePerformanceSpec])
@@ -27,16 +28,16 @@ class IterateePerformanceSpec extends WordSpec with GivenWhenThen with TimeRecor
 
     val runtime = RuntimeEnvironment(this, Array[String]())
     runtime.configFile = new File("./config/it.scala")
-    val marketDB = runtime.loadRuntimeConfig[MarketDb]()
+    val marketDBApp = runtime.loadRuntimeConfig[MarketDbApp]()
 
     implicit val reader = Mockito.mock(classOf[MarketDbReader])
-    Mockito.when(reader.client).thenReturn(marketDB.client)
+    Mockito.when(reader.client).thenReturn(marketDBApp.marketDb.client)
 
     "iterate over existing trades in HBase with Iteratees" in {
       val interval = new DateTime(2012, 02, 01, 0, 0, 0, 0) to new DateTime(2012, 02, 28, 23, 0, 0, 0)
 
       import com.ergodicity.marketdb.iteratee.MarketIteratees._
-      val tradeSeries = marketDB.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
+      val tradeSeries = marketDBApp.marketDb.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
       val enumerator = TimeSeriesEnumerator(tradeSeries)
       val cnt = counter[TradePayload]
 
@@ -49,10 +50,10 @@ class IterateePerformanceSpec extends WordSpec with GivenWhenThen with TimeRecor
     "iterate over existing trades in HBase with Scanner" in {
       val interval = new DateTime(2012, 02, 01, 0, 0, 0, 0) to new DateTime(2012, 02, 28, 23, 0, 0, 0)
 
-      val tradeSeries = marketDB.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
+      val tradeSeries = marketDBApp.marketDb.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
 
       val scanner = {
-        val scanner = marketDB.client.newScanner(tradeSeries.qualifier.table)
+        val scanner = marketDBApp.marketDb.client.newScanner(tradeSeries.qualifier.table)
         scanner.setStartKey(tradeSeries.qualifier.startKey)
         scanner.setStopKey(tradeSeries.qualifier.stopKey)
         scanner
