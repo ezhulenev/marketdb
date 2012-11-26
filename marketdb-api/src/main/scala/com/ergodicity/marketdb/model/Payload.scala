@@ -25,7 +25,7 @@ case class OrderPayload(market: Market, security: Security,
                         price: BigDecimal,
                         amount: Int,
                         amount_rest: Int,
-                        deal: Option[BigDecimal]) extends MarketPayload
+                        deal: Option[(Long, BigDecimal)]) extends MarketPayload
 
 
 object TradeProtocol extends DefaultProtocol {
@@ -72,7 +72,7 @@ object OrderProtocol extends DefaultProtocol {
       read[BigDecimal](in),
       read[Int](in),
       read[Int](in),
-      read[Option[BigDecimal]](in)
+      read[Option[(Long, BigDecimal)]](in)
     )
 
     def writes(out: Output, payload: OrderPayload) {
