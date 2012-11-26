@@ -31,7 +31,7 @@ class MarketDbOrdersTest extends HBaseMatchers {
   val market = Market("RTS")
   val security = Security("RTS 3.12")
   val time = new DateTime
-  val payload = OrderPayload(market, security, 11l, time, 100, 101, 1, BigDecimal("111"), 1, 1, Some(BigDecimal("112")))
+  val payload = OrderPayload(market, security, 11l, time, 100, 101, 1, BigDecimal("111"), 1, 1, Some(100, BigDecimal("112")))
 
 
   // Prepare mocks for testing

@@ -2,7 +2,6 @@ package com.ergodicity.marketdb.iteratee
 
 import collection.JavaConversions
 import collection.JavaConversions._
-import com.ergodicity.marketdb.model.TradeProtocol._
 import com.ergodicity.marketdb.model._
 import com.stumbleupon.async.Deferred
 import java.util
@@ -16,34 +15,47 @@ import org.mockito.stubbing.Answer
 import org.powermock.core.classloader.annotations.{PrepareForTest, PowerMockIgnore}
 import org.powermock.modules.junit4.PowerMockRunner
 import org.slf4j.LoggerFactory
-import sbinary.Operations._
 import scala.Some
 import com.ergodicity.marketdb.ByteArray
+import com.ergodicity.marketdb.model.OrderProtocol._
+import sbinary.Operations._
+import com.ergodicity.marketdb.model.TradeProtocol._
+
 
 object ScannerMock {
-  val DefaultRowsCount = 10
-  val log = LoggerFactory.getLogger("ScannerMock")
 
-  def apply(trades: Seq[TradePayload], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
-           (implicit marketId: Market => ByteArray, securityId: Security => ByteArray) =
-    fromTradePayloads(trades, batchSize, failOnBatch)
+  trait ToKeyValue[P <: MarketPayload] {
+    def keyValue(payload: P)(implicit marketId: Market => ByteArray, securityId: Security => ByteArray): KeyValue
+  }
 
-  val Family = ByteArray("id").toArray
-
-  def tradesToKeyValues(trades: Seq[TradePayload])(implicit marketId: Market => ByteArray, securityId: Security => ByteArray) = {
-    import com.ergodicity.marketdb.model.TradeProtocol._
-    import sbinary.Operations._
-    trades map {
-      payload =>
-        val k = TradeRow(marketId(payload.market), securityId(payload.security), payload.time)
-        new KeyValue(k.toArray, Family, Bytes.fromLong(payload.tradeId), toByteArray(payload))
+  implicit object TradeToKeyValue extends ToKeyValue[TradePayload] {
+    def keyValue(payload: TradePayload)(implicit marketId: Market => ByteArray, securityId: Security => ByteArray) = {
+      val k = TradeRow(marketId(payload.market), securityId(payload.security), payload.time)
+      new KeyValue(k.toArray, Family, Bytes.fromLong(payload.tradeId), toByteArray(payload))
     }
   }
 
-  def fromTradePayloads(values: Seq[TradePayload], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
-                       (implicit marketId: Market => ByteArray, securityId: Security => ByteArray) = {
-    fromKeyValues(tradesToKeyValues(values), batchSize, failOnBatch)
+  implicit object OrderToKeyValue extends ToKeyValue[OrderPayload] {
+    def keyValue(payload: OrderPayload)(implicit marketId: Market => ByteArray, securityId: Security => ByteArray) = {
+      val k = OrderRow(marketId(payload.market), securityId(payload.security), payload.time)
+      new KeyValue(k.toArray, Family, Bytes.fromLong(payload.orderId), toByteArray(payload))
+    }
   }
+
+  val DefaultRowsCount = 10
+  val log = LoggerFactory.getLogger("ScannerMock")
+
+  def apply[P <: MarketPayload](payload: Seq[P], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
+                               (implicit marketId: Market => ByteArray, securityId: Security => ByteArray, toKeyValue: ToKeyValue[P]) =
+    fromPayloads(payload, batchSize, failOnBatch)
+
+  val Family = ByteArray("id").toArray
+
+  def fromPayloads[P <: MarketPayload](values: Seq[P], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
+                                      (implicit marketId: Market => ByteArray, securityId: Security => ByteArray, toKeyValue: ToKeyValue[P]) = {
+    fromKeyValues(values.map(v => toKeyValue.keyValue(v)), batchSize, failOnBatch)
+  }
+
 
   def fromKeyValues(values: Seq[KeyValue], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None) = {
     var pointer = 0
@@ -105,7 +117,7 @@ class ScannerMockTest {
 
   implicit val marketId = (_: Market) => ByteArray(0)
   implicit val securityId = (_: Security) => ByteArray(1)
-  
+
   val NoSystem = true
 
   val market = Market("RTS")
@@ -115,7 +127,7 @@ class ScannerMockTest {
 
   @Test
   def testSinglePayload() {
-    val scanner = fromKeyValues(tradesToKeyValues(Seq(payload)))
+    val scanner = fromKeyValues(Seq(TradeToKeyValue.keyValue(payload)))
 
     val rows = scanner.nextRows().joinUninterruptibly
     log.info("Rows: " + rows)
@@ -130,7 +142,7 @@ class ScannerMockTest {
     val payload2 = TradePayload(market, security, 11l, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 01, 1, 0), NoSystem)
     val payload3 = TradePayload(market, security, 11l, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), NoSystem)
 
-    val scanner = fromTradePayloads(Seq(payload1, payload2, payload3))
+    val scanner = fromPayloads(Seq(payload1, payload2, payload3))
 
     val rows = scanner.nextRows().joinUninterruptibly
     log.info("Rows size: " + rows.size())
@@ -148,7 +160,7 @@ class ScannerMockTest {
     val payload3 = TradePayload(market, security, 11l, BigDecimal("111"), 1, new DateTime(2012, 01, 01, 01, 02, 1, 0), NoSystem)
 
     val err = mock(classOf[HBaseException])
-    val scanner = fromTradePayloads(Seq(payload1, payload2, payload3), 1, Some(1, err))
+    val scanner = fromPayloads(Seq(payload1, payload2, payload3), 1, Some(1, err))
 
     // -- First batch Success
     val rows = scanner.nextRows().joinUninterruptibly
@@ -170,7 +182,7 @@ class ScannerMockTest {
       list = payload :: list
     }
 
-    val scanner = fromTradePayloads(list.toSeq, batchSize = 10)
+    val scanner = fromPayloads(list.toSeq, batchSize = 10)
 
     for (i <- 1 to 9) {
       val rows = scanner.nextRows().joinUninterruptibly()

@@ -13,11 +13,9 @@ import org.powermock.modules.junit4.PowerMockRunner
 import org.scala_tools.time.Implicits._
 import org.scalatest.Assertions._
 import org.slf4j.LoggerFactory
-import com.ergodicity.marketdb.model.Market
+import com.ergodicity.marketdb.model.{OrderPayload, Market, Security, TradePayload}
 import com.ergodicity.marketdb.TimeSeries.Qualifier
 import scala.Some
-import com.ergodicity.marketdb.model.Security
-import com.ergodicity.marketdb.model.TradePayload
 import scalaz.NonEmptyList
 
 @RunWith(classOf[PowerMockRunner])
@@ -206,4 +204,45 @@ class MultipleTimeSeriesEnumeratorTest {
     verify(scanner1).close()
     verify(scanner2).close()
   }
+
+/*
+  @Test
+  def testIterationOverMultipleScannersForTradesAndOrders() {
+    val Count = 100
+
+    val scanner1 = {
+      val payloads = for (i <- 1 to Count) yield TradePayload(market, security, i, BigDecimal("111"), 1, time + i.second, NoSystem)
+      ScannerMock(payloads)
+    }
+
+    val scanner2 = {
+      val payloads = for (i <- 1 to Count) yield OrderPayload(market, security, i, time + 500.millis + i.second, 0, 0, 0, BigDecimal("222"), 1, 1, None)
+      ScannerMock(payloads)
+    }
+
+    val qualifier1 = Qualifier(ByteArray("table1").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+    val qualifier2 = Qualifier(ByteArray("table2").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+
+    val timeSeries1 = new TimeSeries[TradePayload](market, security, interval, qualifier1)
+    val timeSeries2 = new TimeSeries[TradePayload](market, security, interval, qualifier2)
+
+    // -- Prepare mocks
+    implicit val reader = mock(classOf[MarketDbReader])
+    val client = mock(classOf[HBaseClient])
+    when(reader.client).thenReturn(client)
+    when(client.newScanner(qualifier1.table)).thenReturn(scanner1)
+    when(client.newScanner(qualifier2.table)).thenReturn(scanner2)
+
+    // -- Iterate over time series
+    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList(timeSeries1, timeSeries2))
+    val iterv = trades.enumerate(counter[TradePayload])
+    val count = iterv.map(_.run)()
+    log.info("Count: " + count)
+    assert(count == 2 * Count)
+
+    verify(scanner1).close()
+    verify(scanner2).close()
+  }
+*/
+
 }

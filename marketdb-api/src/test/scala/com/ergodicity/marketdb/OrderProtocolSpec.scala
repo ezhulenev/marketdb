@@ -11,7 +11,7 @@ class OrderProtocolSpec extends WordSpec {
     "serialize and deserialize OrderPayload" in {
       val time = new DateTime()
       val order1 = OrderPayload(Market("RTS"), Security("RIM"), 111l, time, 100, 101, 1, BigDecimal(123), 1000, 1100, None)
-      val order2 = OrderPayload(Market("RTS"), Security("RIM"), 111l, time, 100, 101, 1, BigDecimal(123), 1000, 1100, Some(BigDecimal(456)))
+      val order2 = OrderPayload(Market("RTS"), Security("RIM"), 111l, time, 100, 101, 1, BigDecimal(123), 1000, 1100, Some(100, BigDecimal(456)))
 
       val bytes1 = toByteArray[OrderPayload](order1)
       val fromBytes1 = fromByteArray[OrderPayload](bytes1)

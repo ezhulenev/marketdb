@@ -12,7 +12,7 @@ class OrderEventModelSpec extends Spec {
   val market = Market("Test")
   val security = Security("RTS 3.12")
   val time = new DateTime
-  val payload = OrderPayload(market, security, 11111l, time, 100, 101, 1, BigDecimal("150000.50"), 1, 1, Some(BigDecimal("150000.55")))
+  val payload = OrderPayload(market, security, 11111l, time, 100, 101, 1, BigDecimal("150000.50"), 1, 1, Some(100, BigDecimal("150000.55")))
 
   describe("Order event sourced model") {
     it("should create DraftOrder") {
