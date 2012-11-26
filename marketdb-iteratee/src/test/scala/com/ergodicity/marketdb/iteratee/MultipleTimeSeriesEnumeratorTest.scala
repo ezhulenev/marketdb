@@ -13,10 +13,16 @@ import org.powermock.modules.junit4.PowerMockRunner
 import org.scala_tools.time.Implicits._
 import org.scalatest.Assertions._
 import org.slf4j.LoggerFactory
-import com.ergodicity.marketdb.model.{OrderPayload, Market, Security, TradePayload}
+import com.ergodicity.marketdb.model._
 import com.ergodicity.marketdb.TimeSeries.Qualifier
 import scala.Some
 import scalaz.NonEmptyList
+import com.ergodicity.marketdb.model.Market
+import com.ergodicity.marketdb.TimeSeries.Qualifier
+import scala.Some
+import com.ergodicity.marketdb.model.Security
+import com.ergodicity.marketdb.model.TradePayload
+import com.ergodicity.marketdb.model.OrderPayload
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
@@ -220,11 +226,11 @@ class MultipleTimeSeriesEnumeratorTest {
       ScannerMock(payloads)
     }
 
-    val qualifier1 = Qualifier(ByteArray("table1").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
-    val qualifier2 = Qualifier(ByteArray("table2").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+    val qualifier1 = Qualifier(ByteArray("Trades").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
+    val qualifier2 = Qualifier(ByteArray("Orders").toArray, ByteArray("start").toArray, ByteArray("stop").toArray)
 
     val timeSeries1 = new TimeSeries[TradePayload](market, security, interval, qualifier1)
-    val timeSeries2 = new TimeSeries[TradePayload](market, security, interval, qualifier2)
+    val timeSeries2 = new TimeSeries[OrderPayload](market, security, interval, qualifier2)
 
     // -- Prepare mocks
     implicit val reader = mock(classOf[MarketDbReader])
@@ -234,8 +240,8 @@ class MultipleTimeSeriesEnumeratorTest {
     when(client.newScanner(qualifier2.table)).thenReturn(scanner2)
 
     // -- Iterate over time series
-    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList(timeSeries1, timeSeries2))
-    val iterv = trades.enumerate(counter[TradePayload])
+    val trades = new MultipleTimeSeriesEnumerator(NonEmptyList[TimeSeries[MarketPayload]](timeSeries1, timeSeries2))
+    val iterv = trades.enumerate(counter[MarketPayload])
     val count = iterv.map(_.run)()
     log.info("Count: " + count)
     assert(count == 2 * Count)
