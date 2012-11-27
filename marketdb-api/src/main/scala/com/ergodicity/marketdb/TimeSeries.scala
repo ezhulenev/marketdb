@@ -10,6 +10,6 @@ object TimeSeries {
 
 }
 
-class TimeSeries[P <: MarketPayload](val market: Market, val security: Security, val interval: Interval, val qualifier: Qualifier) {
+class TimeSeries[+P <: MarketPayload](val market: Market, val security: Security, val interval: Interval, val qualifier: Qualifier) {
   override def toString = "TimeSeries(market='" + market + "', security='" + security + "', interval='" + interval + "')"
 }

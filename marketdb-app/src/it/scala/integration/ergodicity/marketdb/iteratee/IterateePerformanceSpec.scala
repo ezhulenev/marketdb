@@ -1,6 +1,5 @@
 package integration.ergodicity.marketdb.iteratee
 
-import com.ergodicity.marketdb.core.MarketDb
 import com.ergodicity.marketdb.iteratee.{TimeSeriesEnumerator, MarketDbReader}
 import com.ergodicity.marketdb.model.{TradeProtocol, Market, Security, TradePayload}
 import com.twitter.ostrich.admin.RuntimeEnvironment
@@ -15,6 +14,7 @@ import scala.Predef._
 import org.mockito.Mockito
 import integration.ergodicity.marketdb.TimeRecording
 import com.ergodicity.marketdb.MarketDbApp
+import TimeSeriesEnumerator._
 
 class IterateePerformanceSpec extends WordSpec with GivenWhenThen with TimeRecording {
   val log = LoggerFactory.getLogger(classOf[IterateePerformanceSpec])
@@ -37,7 +37,7 @@ class IterateePerformanceSpec extends WordSpec with GivenWhenThen with TimeRecor
       val interval = new DateTime(2012, 02, 01, 0, 0, 0, 0) to new DateTime(2012, 02, 28, 23, 0, 0, 0)
 
       import com.ergodicity.marketdb.iteratee.MarketIteratees._
-      val tradeSeries = marketDBApp.marketDb.trades(market, security, interval).apply(Duration.fromTimeUnit(3, TimeUnit.SECONDS))
+      val tradeSeries = marketDBApp.marketDb.trades(market, security, interval).apply(Duration.fromTimeUnit(30, TimeUnit.SECONDS))
       val enumerator = TimeSeriesEnumerator(tradeSeries)
       val cnt = counter[TradePayload]
 

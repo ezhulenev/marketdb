@@ -45,19 +45,20 @@ object ScannerMock {
   val DefaultRowsCount = 10
   val log = LoggerFactory.getLogger("ScannerMock")
 
-  def apply[P <: MarketPayload](payload: Seq[P], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
-                               (implicit marketId: Market => ByteArray, securityId: Security => ByteArray, toKeyValue: ToKeyValue[P]) =
+  def apply[P <: MarketPayload](payload: Seq[P], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None, name: Option[String] = None)
+                               (implicit marketId: Market => ByteArray, securityId: Security => ByteArray, toKeyValue: ToKeyValue[P]) = {
     fromPayloads(payload, batchSize, failOnBatch)
+  }
 
   val Family = ByteArray("id").toArray
 
-  def fromPayloads[P <: MarketPayload](values: Seq[P], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None)
+  def fromPayloads[P <: MarketPayload](values: Seq[P], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None, name: Option[String] = None)
                                       (implicit marketId: Market => ByteArray, securityId: Security => ByteArray, toKeyValue: ToKeyValue[P]) = {
     fromKeyValues(values.map(v => toKeyValue.keyValue(v)), batchSize, failOnBatch)
   }
 
 
-  def fromKeyValues(values: Seq[KeyValue], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None) = {
+  def fromKeyValues(values: Seq[KeyValue], batchSize: Int = DefaultRowsCount, failOnBatch: Option[(Int, Exception)] = None, name: Option[String] = None) = {
     var pointer = 0
 
     def nextBatch() = {
@@ -85,7 +86,7 @@ object ScannerMock {
       list
     }
 
-    val scanner = mock(classOf[Scanner])
+    val scanner = name.map(n => mock(classOf[Scanner], n)) getOrElse mock(classOf[Scanner])
     when(scanner.nextRows()).thenAnswer(new Answer[Deferred[util.ArrayList[util.ArrayList[KeyValue]]]] {
       var batch = 0
 

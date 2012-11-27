@@ -16,6 +16,8 @@ import org.scala_tools.time.Implicits._
 import org.scalatest.{WordSpec, GivenWhenThen}
 import org.slf4j.LoggerFactory
 import scalaz.NonEmptyList
+import TimeSeriesEnumerator._
+
 
 class TradesIterateeSpec extends WordSpec with GivenWhenThen {
   val log = LoggerFactory.getLogger(classOf[TradesIterateeSpec])
@@ -82,10 +84,10 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       Future.join(payloads.map(marketDBApp.marketDb.addTrade(_)))()
 
       import MarketIteratees._
-      val tradeSeries = Future.collect(securities.map(sec => marketDBApp.marketDb.trades(market, sec._2, interval))).apply()
+      val tradeSeries = Future.collect(securities.map(sec => marketDBApp.marketDb.trades(market, sec._2, interval).map(_.pimp))).apply()
       log.info("Time series = " + tradeSeries)
 
-      val enumerator = TimeSeriesEnumerator(NonEmptyList(tradeSeries.head, tradeSeries.tail: _*))
+      val enumerator: TimeSeriesEnumerator[TradePayload] = TimeSeriesEnumerator(tradeSeries:_*)
       val iterv = sequencer[TradePayload]
 
       val iter = enumerator.enumerate(iterv).map(_.run)
