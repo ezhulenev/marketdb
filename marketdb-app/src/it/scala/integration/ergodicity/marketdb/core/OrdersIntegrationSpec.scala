@@ -27,7 +27,7 @@ class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
     runtime.configFile = new File("./config/it.scala")
     val marketDBApp = runtime.loadRuntimeConfig[MarketDbApp]()
 
-    "should persist new order" in {
+    "persist new order" in {
 
       // Execute
       val futureReaction = recordTime("Add order", () => marketDBApp.marketDb.addOrder(payload))
@@ -36,7 +36,7 @@ class OrdersIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
       log.info("order reaction: " + reaction)
     }
 
-    "should persist new orders and scan them later" in {
+    "persist new orders and scan them later" in {
       val time1 = new DateTime(1970, 01, 01, 1, 0, 0, 0)
       val time2 = new DateTime(1970, 01, 01, 1, 0, 1, 0)
 

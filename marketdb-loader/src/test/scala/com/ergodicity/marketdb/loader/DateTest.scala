@@ -1,16 +1,16 @@
 package com.ergodicity.marketdb.loader
 
-import org.scalatest.Spec
+import org.scalatest.{WordSpec, Spec}
 import org.joda.time.DateTime
 import org.scala_tools.time.Implicits._
 import org.slf4j.LoggerFactory
 import com.ergodicity.marketdb.loader.util.Implicits._
 
-class DateTest extends Spec {
+class DateTest extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[DateTest])
 
-  describe("Joda Time") {
-    it("should split valid interval to days") {
+  "Joda Time" must {
+    "split valid interval to days" in {
 
       val now = new DateTime
       val previousWeek = now - 7.days

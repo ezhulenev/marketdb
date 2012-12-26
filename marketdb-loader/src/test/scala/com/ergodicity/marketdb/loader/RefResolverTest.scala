@@ -1,6 +1,6 @@
 package com.ergodicity.marketdb.loader
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.mockito.Mockito._
 import org.mockito.Matchers._
 import org.apache.commons.httpclient.methods.GetMethod
@@ -9,7 +9,7 @@ import java.io.{IOException, File}
 import org.slf4j.LoggerFactory
 import org.joda.time.{LocalDate, DateTime}
 
-class RefResolverTest extends Spec with HttpClientMatchers {
+class RefResolverTest extends WordSpec with HttpClientMatchers {
   val log = LoggerFactory.getLogger(classOf[RefResolverTest])
 
   val EmptyPattern = "empty"
@@ -17,16 +17,16 @@ class RefResolverTest extends Spec with HttpClientMatchers {
   val RtsUrl = "http://ftp.rts.ru/pub/info/stats/history"
   val RtsPattern = "'/F/'YYYY'/FT'YYMMdd'.zip'"
 
-  describe("Local Reference Resolver") {
-    it("should throw exception on bad directory") {
+  "Local Reference Resolver" must {
+    "throw exception on bad directory" in {
       intercept[IllegalArgumentException] {
         RefResolver(new File("NoSuchDirecotry"), EmptyPattern)
       }
     }
   }
 
-  describe("Remote reference resolver") {
-    it("should return None if HTTP request throwed an Exception") {
+  "Remote reference resolver" must {
+    "return None if HTTP request throwed an Exception" in {
       val client = mock(classOf[HttpClient])
       when(client.executeMethod(any(classOf[GetMethod]))).thenThrow(new IOException("Test"))
 
@@ -36,7 +36,7 @@ class RefResolverTest extends Spec with HttpClientMatchers {
       assert(resolver.resolve(today).isEmpty)
     }
 
-    it("should return None for error response code") {
+    "return None for error response code" in {
       val client = mock(classOf[HttpClient])
 
       // Init mock
@@ -48,7 +48,7 @@ class RefResolverTest extends Spec with HttpClientMatchers {
       assert(resolver.resolve(today).isEmpty)
     }
 
-    it("should return Some for success response code") {
+    "return Some for success response code" in {
       val client = mock(classOf[HttpClient])
 
       // Init mock

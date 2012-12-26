@@ -1,6 +1,6 @@
 package com.ergodicity.marketdb.loader
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.slf4j.LoggerFactory
 
 import scalaz.effects._
@@ -11,13 +11,13 @@ import java.io._
 import java.util.zip.ZipInputStream
 
 
-class ScalazIterateeTests extends Spec {
+class ScalazIterateeTests extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[ScalazIterateeTests])
 
   val Path = "classpath:FT120201.zip"
 
-  describe("Reading RTS zip file") {
-    it("should read zip") {
+  "Reading RTS zip file" must {
+    "read zip" in {
 
       val is = this.getClass.getResourceAsStream("/data/FT120201.zip").pure[IO]
 
@@ -33,7 +33,7 @@ class ScalazIterateeTests extends Spec {
 
           var line = reader.readLine()
           while (line != null) {
-            log.info("Line: " + line);
+            log.info("Line: " + line)
             line = reader.readLine()
           }
       }
@@ -41,7 +41,7 @@ class ScalazIterateeTests extends Spec {
       lines.unsafePerformIO
     }
 
-    it("should work with IterV") {
+    "work with IterV" in {
       // val s = sortedLogger[String]
       // log.info("RES: "+s(List("1","2","3","0")).run)
 

@@ -1,20 +1,20 @@
 package com.ergodicity.marketdb.model
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.slf4j.LoggerFactory
 import com.ergodicity.marketdb.event._
 import org.joda.time.DateTime
 import com.ergodicity.marketdb.ByteArray
 
-class TradeEventModelSpec extends Spec {
+class TradeEventModelSpec extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[TradeEventModelSpec])
 
   val market = Market("Test")
   val security = Security("RTS 3.12")
   val payload = TradePayload(market, security, 11111l, BigDecimal("150000.50"), 1, new DateTime(), false)
 
-  describe("Trade event sourced model") {
-    it("should create DraftTrade") {
+  "Trade event sourced model" must {
+    "create DraftTrade" in {
       val draftTrade: DraftTrade = Trade.loadFromHistory(Seq(TradeReceived(payload)))
       val enriched = draftTrade.enrichTrade(ByteArray("b"), ByteArray("d"))
 
@@ -26,9 +26,9 @@ class TradeEventModelSpec extends Spec {
     }
   }
 
-  describe("EnrichedTrade") {
+  "EnrichedTrade" must {
 
-    it("should fail to serialize with too long MarketId") {
+    "fail to serialize with too long MarketId" in {
       val enrichedTrade = EnrichedTrade(ByteArray("Too long"), ByteArray("0"), payload)
       val binary = enrichedTrade.serializeTrade().reaction
 
@@ -38,7 +38,7 @@ class TradeEventModelSpec extends Spec {
       })
     }
 
-    it("should fail to serialize with too short CodeId") {
+    "fail to serialize with too short CodeId" in {
       val enrichedTrade = EnrichedTrade(ByteArray("0"), ByteArray("0"), payload)
       val binary = enrichedTrade.serializeTrade().reaction
 
@@ -48,7 +48,7 @@ class TradeEventModelSpec extends Spec {
       })
     }
 
-    it("should be serialized to BinaryTrade") {
+    "be serialized to BinaryTrade" in {
       val enrichedTrade = EnrichedTrade(ByteArray("0"), ByteArray("001"), payload)
       val binary = enrichedTrade.serializeTrade().reaction
 

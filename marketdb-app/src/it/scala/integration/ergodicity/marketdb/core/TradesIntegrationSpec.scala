@@ -36,7 +36,7 @@ class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
     implicit val reader = Mockito.mock(classOf[MarketDbReader])
     Mockito.when(reader.client).thenReturn(marketDBApp.marketDb.client)
 
-    "should persist new trade" in {
+    "persist new trade" in {
       val payload = TradePayload(market, security, 11l, BigDecimal("111"), 1, time, NoSystem)
 
       // Execute
@@ -46,7 +46,7 @@ class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
       log.info("Trade reaction: " + reaction)
     }
 
-    "should persist new trades and scan them later" in {
+    "persist new trades and scan them later" in {
       val time1 = new DateTime(1970, 01, 01, 1, 0, 0, 0)
       val time2 = new DateTime(1970, 01, 01, 1, 0, 1, 0)
 
@@ -88,7 +88,7 @@ class TradesIntegrationSpec extends WordSpec with GivenWhenThen with TimeRecordi
       assert(scanner.nextRows().joinUninterruptibly() == null)
     }
 
-    "should return null if no trades exists" in {
+    "return null if no trades exists" in {
       // -- Verify two rows for 1970 Feb 1
       val interval = new DateTime(1970, 02, 01, 0, 0, 0, 0) to new DateTime(1970, 02, 01, 23, 0, 0, 0)
       val timeSeries = marketDBApp.marketDb.trades(market, security, interval).apply()

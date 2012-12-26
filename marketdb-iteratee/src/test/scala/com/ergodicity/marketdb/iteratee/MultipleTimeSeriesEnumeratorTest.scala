@@ -22,6 +22,7 @@ import scala.Some
 import com.ergodicity.marketdb.model.Security
 import com.ergodicity.marketdb.model.TradePayload
 import com.ergodicity.marketdb.model.OrderPayload
+import com.ergodicity.marketdb.mock.ScannerMock
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",

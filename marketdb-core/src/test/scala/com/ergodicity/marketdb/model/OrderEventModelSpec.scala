@@ -1,12 +1,12 @@
 package com.ergodicity.marketdb.model
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.slf4j.LoggerFactory
 import com.ergodicity.marketdb.event._
 import org.joda.time.DateTime
 import com.ergodicity.marketdb.ByteArray
 
-class OrderEventModelSpec extends Spec {
+class OrderEventModelSpec extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[OrderEventModelSpec])
 
   val market = Market("Test")
@@ -14,8 +14,8 @@ class OrderEventModelSpec extends Spec {
   val time = new DateTime
   val payload = OrderPayload(market, security, 11111l, time, 100, 101, 1, BigDecimal("150000.50"), 1, 1, Some(100, BigDecimal("150000.55")))
 
-  describe("Order event sourced model") {
-    it("should create DraftOrder") {
+  "Order event sourced model" must {
+    "create DraftOrder" in {
       val draftOrder: DraftOrder = Order.loadFromHistory(Seq(OrderReceived(payload)))
       val enriched = draftOrder.enrichOrder(ByteArray("b"), ByteArray("d"))
 
@@ -27,9 +27,9 @@ class OrderEventModelSpec extends Spec {
     }
   }
 
-  describe("EnrichedOrder") {
+  "EnrichedOrder" must {
 
-    it("should fail to serialize with too long MarketId") {
+    "fail to serialize with too long MarketId" in {
       val enrichedOrder = EnrichedOrder(ByteArray("Too long"), ByteArray("0"), payload)
       val binary = enrichedOrder.serializeOrder().reaction
 
@@ -39,7 +39,7 @@ class OrderEventModelSpec extends Spec {
       })
     }
 
-    it("should fail to serialize with too short CodeId") {
+    "fail to serialize with too short CodeId" in {
       val enrichedOrder = EnrichedOrder(ByteArray("0"), ByteArray("0"), payload)
       val binary = enrichedOrder.serializeOrder().reaction
 
@@ -49,7 +49,7 @@ class OrderEventModelSpec extends Spec {
       })
     }
 
-    it("should be serialized to BinaryOrder") {
+    "be serialized to BinaryOrder" in {
       val enrichedOrder = EnrichedOrder(ByteArray("0"), ByteArray("001"), payload)
       val binary = enrichedOrder.serializeOrder().reaction
 

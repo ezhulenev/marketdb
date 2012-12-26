@@ -26,7 +26,7 @@ class MarketDbApiProtocolSpec extends WordSpec {
 
   "MarketDb Api" must {
 
-    "should reply with MarketDbConfig" in {
+    "reply with MarketDbConfig" in {
       val conn = Connection("test")
 
       val service = new Service[MarketDbReq, MarketDbRep] {
@@ -43,7 +43,7 @@ class MarketDbApiProtocolSpec extends WordSpec {
       assert(config.connection == conn)
     }
 
-    "should scan trades" in {
+    "scan trades" in {
       val timeSeries = new TimeSeries[TradePayload](market, security, interval, qualifier)
       val service = new Service[MarketDbReq, MarketDbRep] {
         def apply(request: MarketDbReq) = request match {
@@ -61,7 +61,7 @@ class MarketDbApiProtocolSpec extends WordSpec {
       assert(trades.timeSeries.interval == interval)
     }
 
-    "should scan orders" in {
+    "scan orders" in {
       val timeSeries = new TimeSeries[OrderPayload](market, security, interval, qualifier)
       val service = new Service[MarketDbReq, MarketDbRep] {
         def apply(request: MarketDbReq) = request match {

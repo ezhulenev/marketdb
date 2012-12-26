@@ -1,14 +1,14 @@
 package com.ergodicity.marketdb.loader
 
 import org.slf4j.LoggerFactory
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import com.twitter.finagle.kestrel.Client
 import org.mockito.Mockito._
 import org.mockito.Matchers._
 import util.{BatchSettings, Iteratees}
 import com.ergodicity.marketdb.model.TradeProtocol._
 
-class TradeDataToKestrelTest extends Spec {
+class TradeDataToKestrelTest extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[TradeDataIterateeTest])
 
   val Queue = "Queue"
@@ -17,8 +17,8 @@ class TradeDataToKestrelTest extends Spec {
     RtsTradeHistory(InputStreamRef(this.getClass.getResourceAsStream("/data/FT120201.zip")))
   }
 
-  describe("Kestrel Iteratee") {
-    it("should push messages to Kestrel") {
+  "Kestrel Iteratee" must {
+    "push messages to Kestrel" in {
       import TradeDataIteratee._
       import Iteratees._
 
@@ -36,7 +36,7 @@ class TradeDataToKestrelTest extends Spec {
       verify(client, only()).write(anyString(), any())
     }
 
-    it("should push messages to Kestrel with specified bulk size") {
+    "push messages to Kestrel with specified bulk size" in {
       import TradeDataIteratee._
       import Iteratees._
 
@@ -54,7 +54,7 @@ class TradeDataToKestrelTest extends Spec {
       verify(client, times(2)).write(anyString(), any())
     }
 
-    it("should push messages to Kestrel with specified bulk size and limit") {
+    "push messages to Kestrel with specified bulk size and limit" in {
       import TradeDataIteratee._
       import Iteratees._
 
@@ -72,7 +72,7 @@ class TradeDataToKestrelTest extends Spec {
       verify(client, times(2)).write(anyString(), any())
     }
 
-    it("should push messages to Kestrel with specified bulk size and limit below bulk size") {
+    "push messages to Kestrel with specified bulk size and limit below bulk size" in {
       import TradeDataIteratee._
       import Iteratees._
 
@@ -90,7 +90,7 @@ class TradeDataToKestrelTest extends Spec {
       verify(client, times(1)).write(anyString(), any())
     }
 
-    it("should push any uniqie payload") {
+    "push any uniqie payload" in {
       import TradeDataIteratee._
       import Iteratees._
 

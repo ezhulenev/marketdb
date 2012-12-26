@@ -1,22 +1,22 @@
 package com.ergodicity.marketdb
 
 import model.{TradePayload, Security, Market}
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.joda.time.DateTime
 import sbinary._
 import Operations._
 import com.ergodicity.marketdb.model.TradeProtocol._
 import org.slf4j.LoggerFactory
 
-class TradeProtocolSpec extends Spec {
+class TradeProtocolSpec extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[TradeProtocolSpec])
 
-  describe("TradeProtocol") {
+  "TradeProtocol" must {
     val market = Market("RTS")
     val security = Security("RTS 3.12")
     val now = new DateTime
 
-    it("should serialized and deserialized to/from byte array") {
+    "serialized and deserialized to/from byte array" in {
       val payload = TradePayload(market, security, 11l, BigDecimal("1.111"), 1, now, false)
 
       val binary = toByteArray(payload)
@@ -33,7 +33,7 @@ class TradeProtocolSpec extends Spec {
       })
     }
 
-    it("should serialize and deserialize to/from List") {
+    "serialize and deserialize to/from List" in {
       val payload1 = TradePayload(market, security, 11l, BigDecimal("1.111"), 1, now, false)
       val payload2 = TradePayload(market, security, 12l, BigDecimal("1.111"), 1, now, false)
 
@@ -56,6 +56,4 @@ class TradeProtocolSpec extends Spec {
   def showByte(b: Byte) = pad(((b + 256) % 256).toHexString)
 
   def pad(s: String) = if (s.length == 1) "0" + s else s
-
-
 }

@@ -1,16 +1,16 @@
 package com.ergodicity.marketdb.loader
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.slf4j.LoggerFactory
 import java.io.File
 import util.Iteratees
 
-class LocalMirrorCacheTest extends Spec {
+class LocalMirrorCacheTest extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[LocalMirrorCacheTest])
 
   val RtsFtpUrl = "http://ftp.rts.ru/pub/info/stats/history"
 
-  describe("LocalMirrorCache") {
+  "LocalMirrorCache" must {
     import com.ergodicity.marketdb.loader.util.RichFile._
 
     val tempDir = new File(System.getProperty("java.io.tmpdir"))
@@ -27,7 +27,7 @@ class LocalMirrorCacheTest extends Spec {
 
     val cache = new LocalMirrorCache(cacheDir, RtsFtpUrl)
 
-    it("should cache download data from InptuStream and cache in local directory") {
+    "cache download data from InptuStream and cache in local directory" in {
       val is = this.getClass.getResourceAsStream("/data/FT120201.zip")
       val ref = new RemoteRef(RtsFtpUrl + "/F/2012/FT120201.zip")
 

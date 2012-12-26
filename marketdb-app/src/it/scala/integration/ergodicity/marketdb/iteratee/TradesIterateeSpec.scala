@@ -37,7 +37,7 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
     implicit val reader = Mockito.mock(classOf[MarketDbReader])
     Mockito.when(reader.client).thenReturn(marketDBApp.marketDb.client)
 
-    "should persist new trades iterate over them with MarketIteratee" in {
+    "persist new trades iterate over them with MarketIteratee" in {
       val time1 = new DateTime(1972, 01, 05, 1, 0, 0, 0)
       val time2 = new DateTime(1972, 01, 05, 1, 0, 1, 0)
 
@@ -66,7 +66,7 @@ class TradesIterateeSpec extends WordSpec with GivenWhenThen {
       assert(count == 2)
     }
 
-    "should persist trades and iterate over them for multiple securities" in {
+    "persist trades and iterate over them for multiple securities" in {
       val interval = new DateTime(1972, 01, 05, 0, 0, 0, 0) to new DateTime(1972, 01, 05, 23, 0, 0, 0)
       val baseTime = new DateTime(1972, 01, 05, 1, 0, 0, 0)
 

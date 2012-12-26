@@ -2,15 +2,15 @@ package com.ergodicity.marketdb.uid
 
 import scalaz._
 import org.slf4j.LoggerFactory
-import org.scalatest.{GivenWhenThen, Spec}
+import org.scalatest.{WordSpec, GivenWhenThen}
 import com.ergodicity.marketdb.ByteArray
 
-class UIDCacheTest extends Spec with GivenWhenThen {
+class UIDCacheTest extends WordSpec with GivenWhenThen {
   val log = LoggerFactory.getLogger(classOf[UIDCacheTest])
 
-  describe("UIDCache") {
+  "UIDCache" must {
 
-    it("should return None if no value cached for given name") {
+    "return None if no value cached for given name" in {
       given("an empty cache")
       val cache = new UIDCache
 
@@ -24,7 +24,7 @@ class UIDCacheTest extends Spec with GivenWhenThen {
       }
     }
 
-    it("should return None if no value cached for given id") {
+    "return None if no value cached for given id" in {
       given("an empty cache")
       val cache = new UIDCache
 
@@ -38,7 +38,7 @@ class UIDCacheTest extends Spec with GivenWhenThen {
       }
     }
 
-    it("should properly return cached values") {
+    "properly return cached values" in {
       given("non empty cache")
       val name = "Name"
       val id = ByteArray(Array[Byte](0))
@@ -59,7 +59,7 @@ class UIDCacheTest extends Spec with GivenWhenThen {
     }
   }
 
-  it("should successfully cache the same values twice") {
+  "successfully cache the same values twice" in {
     given("non empty cache")
     val name = "Name"
     val id = ByteArray(Array[Byte](0))
@@ -80,7 +80,7 @@ class UIDCacheTest extends Spec with GivenWhenThen {
     assert(cache.cachedIds.size == 1)
   }
 
-  it("should fail to cache different ids with same name") {
+  "fail to cache different ids with same name" in {
     given("non empty cache")
     val name = "Name"
     val id1 = ByteArray(Array[Byte](0))
@@ -102,7 +102,7 @@ class UIDCacheTest extends Spec with GivenWhenThen {
     assert(cache.cachedIds.size == 1)
   }
 
-  it("should fail to cache different names with same id") {
+  "fail to cache different names with same id" in {
     given("non empty cache")
     val name1 = "Name1"
     val name2 = "Name2"

@@ -20,21 +20,21 @@ class ValidateConfigurationTest extends WordSpec with EvalSupport {
   lazy val client = new HBaseClient(config.connection.zookeeperQuorum)
 
   "Test configuration" must {
-    "should load quorum properties" in {
+    "load quorum properties" in {
       val quorum = config.connection.zookeeperQuorum
       log.info("Quorum: " + quorum)
 
       assert(quorum != null)
     }
 
-    "should connect to local HBase and fail on non-existing table" in {
+    "connect to local HBase and fail on non-existing table" in {
       val exists: Deferred[AnyRef] = client.ensureTableExists("Test table")
       intercept[TableNotFoundException] {
         exists.join(DefaultTimeout)
       }
     }
 
-    "should connect to local HBase and verify test tables exists" in {
+    "connect to local HBase and verify test tables exists" in {
       client.ensureTableExists(config.tradesTable).join(DefaultTimeout)
       client.ensureTableExists(config.uidTable).join(DefaultTimeout)
     }

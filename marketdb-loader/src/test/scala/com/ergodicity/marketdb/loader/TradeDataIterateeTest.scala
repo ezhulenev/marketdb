@@ -1,18 +1,18 @@
 package com.ergodicity.marketdb.loader
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.slf4j.LoggerFactory
 import util.Iteratees
 
-class TradeDataIterateeTest extends Spec {
+class TradeDataIterateeTest extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[TradeDataIterateeTest])
 
   val RtsTrades = () => {
     RtsTradeHistory(InputStreamRef(this.getClass.getResourceAsStream("/data/FT120201.zip")))
   }
 
-  describe("TradeDataIteratee") {
-    it("should iterate over RtsTradeHistory") {
+  "TradeDataIteratee" must {
+    "iterate over RtsTradeHistory" in {
       import TradeDataIteratee._
       import Iteratees._
 

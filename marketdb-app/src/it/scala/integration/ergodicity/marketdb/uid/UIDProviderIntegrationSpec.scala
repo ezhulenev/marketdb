@@ -27,7 +27,7 @@ class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRe
 
   "UIDProvider" must {
 
-    "should return None for unknown name" in {
+    "return None for unknown name" in {
       val unknownName = generateString(10) // Generate unique name
 
       given("new UIDProvider with empty cache")
@@ -45,7 +45,7 @@ class UIDProviderIntegrationSpec extends WordSpec with GivenWhenThen with TimeRe
       })
     }
 
-    "should create new id for given name" in {
+    "create new id for given name" in {
       val name = generateString(10) // Generate unique name
 
       given("new UIDProvider with empty cache")
