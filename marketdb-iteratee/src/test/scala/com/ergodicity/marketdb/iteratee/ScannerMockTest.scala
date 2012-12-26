@@ -1,4 +1,4 @@
-package com.ergodicity.marketdb.mock
+package com.ergodicity.marketdb.iteratee
 
 import collection.JavaConversions._
 import com.ergodicity.marketdb.model._

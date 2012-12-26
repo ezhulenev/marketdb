@@ -1,4 +1,4 @@
-package com.ergodicity.marketdb.mock
+package com.ergodicity.marketdb.iteratee
 
 import collection.JavaConversions
 import com.ergodicity.marketdb.model._
@@ -102,3 +102,4 @@ object ScannerMock {
     scanner
   }
 }
+

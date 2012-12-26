@@ -17,7 +17,7 @@ object MarketDBBuild extends Build {
   lazy val marketdb = Project(
     id = "marketdb",
     base = file("."),
-    aggregate = Seq(marketdbApi, marketdbApp, marketdbCore, marketdbIteratee, marketdbLoader, marketdbMock)
+    aggregate = Seq(marketdbApi, marketdbApp, marketdbCore, marketdbIteratee, marketdbLoader)
   ).configs( IntegrationTest )
     .settings( (Defaults.itSettings ++ graphSettings) : _*)
 
@@ -56,7 +56,7 @@ object MarketDBBuild extends Build {
   lazy val marketdbIteratee = Project(
     id = "marketdb-iteratee",
     base = file("marketdb-iteratee"),
-    dependencies = Seq(marketdbApi, marketdbMock, marketdbCore % "test->test"),
+    dependencies = Seq(marketdbApi, marketdbCore % "test->test"),
     settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
       scalacOptions += "-deprecation",
       libraryDependencies ++= Dependencies.iteratee
@@ -74,18 +74,6 @@ object MarketDBBuild extends Build {
     )
   ).configs( IntegrationTest )
     .settings( Defaults.itSettings : _*)
-
-  lazy val marketdbMock = Project(
-    id = "marketdb-mock",
-    base = file("marketdb-mock"),
-    dependencies = Seq(marketdbApi, marketdbCore),
-    settings = Project.defaultSettings ++ repositoriesSetting ++ unmanagedSettings ++ graphSettings ++ scala.Seq[sbt.Project.Setting[_]](
-      scalacOptions += "-deprecation",
-      libraryDependencies ++= Dependencies.mock
-    )
-  ).configs( IntegrationTest )
-    .settings( Defaults.itSettings : _*)
-
 
   // -- Settings
 
@@ -165,9 +153,6 @@ object Dependencies {
 
   val loader = Seq(ostrich, finagleCore, finagleKestrel, scalaIO, httpClient, scalaTime, sbinary, jodaTime, jodaConvert, slf4jApi, logback, scalaz) ++
     Seq(Test.scalatest, Test.mockito)
-
-  val mock = Seq(scalaz) ++ Seq(asyncHBase, stumbleuponAsync, zookeeper, mockito) ++
-    Seq(Test.junit, Test.mockito, Test.powermockApi, Test.powermockJUnit, Test.scalatest, Test.junitInterface)
 }
 
 

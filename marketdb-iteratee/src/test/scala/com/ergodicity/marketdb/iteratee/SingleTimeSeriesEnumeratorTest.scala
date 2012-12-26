@@ -23,7 +23,6 @@ import com.ergodicity.marketdb.model.TradePayload
 import com.ergodicity.marketdb.model.OrderPayload
 import TradeProtocol._
 import TimeSeriesEnumerator._
-import com.ergodicity.marketdb.mock.ScannerMock
 
 @RunWith(classOf[PowerMockRunner])
 @PowerMockIgnore(Array("javax.management.*", "javax.xml.parsers.*",
