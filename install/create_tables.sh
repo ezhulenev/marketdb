@@ -16,7 +16,7 @@ ORDERS_TABLE=${ORDERS_TABLE-'market-orders'}
 UID_TABLE=${UID_TABLE-'market-uid'}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
-COMPRESSION=${COMPRESSION-'None'}
+COMPRESSION=${COMPRESSION-'NONE'}
 
 echo "Going to create tables: "
 echo " - Trades table: $TRADES_TABLE"
