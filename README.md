@@ -81,7 +81,7 @@ MarketDb written in scala and provides functional [Iteratee](http://jsuereth.com
 8. Run MarketDb
 
 
-            java -jar marketdb-0.1-SNAPSHOT.jar -f local.scala
+            java -jar marketdb-0.1-SNAPSHOT.jar -f config.scala
 
 
         
