@@ -58,7 +58,8 @@ MarketDb written in scala and provides functional [Iteratee](http://jsuereth.com
           // Connection to running Kestrel (possibly multiple applications)
           // And queue names to consume Trades & Orders
           val kestrelLoaderService = (marketDB: MarketDb) => {
-            new KestrelLoader(marketDB, KestrelConfig(Seq("localhost:22133"), "trades", "orders", hostConnectionLimit = 30))
+            new KestrelLoader(marketDB, KestrelConfig(Seq("localhost:22133"), 
+                              "trades", "orders", hostConnectionLimit = 30))
           }
     
           // Services to start right after MarketDb itself
