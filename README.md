@@ -35,7 +35,7 @@ MarketDb written in scala and provides functional [Iteratee](http://jsuereth.com
 7. Create MarketDb configuration.  
    MarketDb uses [Ostrich](https://github.com/twitter/ostrich) for configuration, hence you need to create Scala configuration before running. 
 
-   Configuration for HBase & Kestrel installed locally:
+   ##### Configuration for local HBase & Kestrel
 
         import com.ergodicity.marketdb.core.MarketDb
         import com.ergodicity.marketdb.{MarketDbConfig, KestrelLoader, KestrelConfig}
@@ -84,4 +84,55 @@ MarketDb written in scala and provides functional [Iteratee](http://jsuereth.com
             java -jar marketdb-0.1-SNAPSHOT.jar -f config.scala
 
 
+## Querying MarketDb
+
+MarketDb exposes binary API using [Twitter's Finagle](https://github.com/twitter/finagle) library to get Timeseries for further processing.
+
+Timeseries processing relies on Enumeration based I/O with Iteratees, based on [Scalaz 6.0.4 Iteratees](https://github.com/scalaz/scalaz/blob/release/6.0.4/example/src/main/scala/scalaz/example/ExampleIteratee.scala). Rúnar Óli wrote a good [article](http://apocalisp.wordpress.com/2010/10/17/scalaz-tutorial-enumeration-based-io-with-iteratees/) about this approach for composable & functional input processing.
+
+##### Scala MarketDb Client Implementation
+    import com.ergodicity.marketdb.api._
+    import com.ergodicity.marketdb.model._
+    import com.ergodicity.marketdb.iteratee.TimeSeriesEnumerator._
+    import java.net.InetSocketAddress
+    import com.twitter.finagle.builder.ClientBuilder
+    import com.twitter.util.Future
+    import org.joda.time.DateTime
+    import org.scala_tools.time.Implicits._
+    
+    
+    object MarketDbClient {
+      val market = Market("FORTS")
+      val security = Security("RTS-3.13")
+      val interval = new DateTime(2013, 1, 8, 10, 0) to new DateTime(2013, 1, 8, 19, 0)
+    
+      def main(args: Array[String]) {
+        // Wrap the raw MarketDb service in a Client decorator. The client provides
+        // a convenient procedural interface for accessing the MarketDb server.
+        val marketdb = ClientBuilder()
+          .codec(MarketDbCodec)
+          .hosts(new InetSocketAddress(10033))
+          .hostConnectionLimit(1)
+          .build()
+    
+        val config: Future[MarketDbConfig] = marketdb(GetMarketDbConfig).map(_.asInstanceOf[MarketDbConfig])
+        val trades: Future[Trades] = marketdb(ScanTrades(market, security, interval)).map(_.asInstanceOf[Trades])
         
+        (config join trades) onSuccess {
+          case (MarketDbConfig(connection), Trades(timeSeries)) =>
+            implicit val marketDbReader = new MarketDbReader(connection)
+    
+            val enumerator = TimeSeriesEnumerator(timeSeries)
+            val iterv = enumerator.enumerate(MarketIteratees.counter[TradePayload])
+            val count = iterv.map(_.run)()
+            
+            System.out.println("Trades count = " + count + ", for given interval = " + interval)
+    
+        } onFailure {
+          case cause => System.out.println("Failed with cause: " + cause)
+        } ensure {
+          marketdb.release()
+        }
+      }
+    }
+
