@@ -84,6 +84,8 @@ MarketDb written in scala and provides functional [Iteratee](http://jsuereth.com
 7. Run MarketDb
 
             $ java -jar marketdb-0.1-SNAPSHOT.jar -f config.scala
+            
+   At this point you can access the MarketDb's admin page through 127.0.0.1:9000 (if it's running on your local machine).
 
 
 ## Filling MarketDb
