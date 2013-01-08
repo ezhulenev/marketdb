@@ -22,17 +22,19 @@ MarketDb written in scala and provides functional [Iteratee](http://jsuereth.com
    More about compression levels could be found [here](http://wiki.apache.org/hadoop/UsingLzoCompression)
    
 
-4. Clone MarketDb repository
+4. Checkout & build MarketDb
+
+        $ git clone git://github.com/Ergodicity/marketdb.git
+        $ cd ./marketdb
+        $ sbt package
+
 5. Execute commands from MarketDb root directory:
 
         $ ./install/create_tables.sh - create tables
         $ ./install/create_test_tables.sh - create tables for integration tests (with prefix 'test-')
-6. Build MarketDb
-
-        $ ./sbt package
     
     
-7. Create MarketDb configuration.  
+6. Create MarketDb configuration.  
    MarketDb uses [Ostrich](https://github.com/twitter/ostrich) for configuration, hence you need to create Scala configuration before running. 
 
    ##### Configuration for local HBase & Kestrel
@@ -79,10 +81,16 @@ MarketDb written in scala and provides functional [Iteratee](http://jsuereth.com
 
 
 
-8. Run MarketDb
+7. Run MarketDb
+
+            $ java -jar marketdb-0.1-SNAPSHOT.jar -f config.scala
 
 
-            java -jar marketdb-0.1-SNAPSHOT.jar -f config.scala
+## Filling MarketDb
+
+MarketDb consumes market data from Kestrel queues used in configuration. How to write data into Kestrel queues could be found in [finagle-kestrel api documentation](http://twitter.github.com/finagle/api/finagle-kestrel/index.html) and [Finagle examples](https://github.com/twitter/finagle/blob/master/README.md#api-reference-documentation)
+
+For particular code examples you may also take a look into marketdb-loader project which provides convinient way to load historical data into MarketDb from "Russian Trading System" Stock Exchange [trades result archive](http://www.rts.ru/s638).
 
 
 ## Querying MarketDb
@@ -139,5 +147,5 @@ Timeseries processing relies on Enumeration based I/O with Iteratees, based on [
     
     
 ## Monitoring MarketDb
-You can monitor MarketDb status and statistics using Ostrich admin console, which is configured using MarketDbConfig. See <a href="#configuration-for-local-hbase--kestrel">example cofniguration</a>
+You can monitor MarketDb status and statistics using Ostrich admin console, which is configured using MarketDbConfig (admin.httpPort). See <a href="#configuration-for-local-hbase--kestrel">example cofniguration</a>
 
