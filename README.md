@@ -136,4 +136,8 @@ Timeseries processing relies on Enumeration based I/O with Iteratees, based on [
         }
       }
     }
+    
+    
+## Monitoring MarketDb
+You can monitor MarketDb status and statistics using Ostrich admin console, which is configured using MarketDbConfig. See <a href="#configuration-for-local-hbase--kestrel">example cofniguration</a>
 
