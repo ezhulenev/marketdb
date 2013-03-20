@@ -8,5 +8,7 @@ sealed trait TradeEvent {
 }
 
 case class TradeReceived(payload: TradePayload) extends TradeEvent
-case class TradeEnriched(marketId: ByteArray, codeId: ByteArray) extends TradeEvent
+
+case class TradeEnriched(marketId: ByteArray, securityId: ByteArray) extends TradeEvent
+
 case class TradeSerialized(row: ByteArray, qualifier: ByteArray, payload: ByteArray) extends TradeEvent

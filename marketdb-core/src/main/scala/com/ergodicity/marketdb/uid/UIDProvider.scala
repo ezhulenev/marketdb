@@ -1,21 +1,19 @@
 package com.ergodicity.marketdb.uid
 
-import scala.concurrent.stm._
-import org.hbase.async._
-import scalaz._
-import Scalaz._
-import org.slf4j.LoggerFactory
-import com.ergodicity.marketdb.uid._
-import java.util.ArrayList
 import com.ergodicity.marketdb.AsyncHBase._
-import scalaz.Digit._0
-import com.twitter.util.FuturePool._
-import java.util.concurrent.Executors
-import com.twitter.util.{FuturePool, Promise, Future}
-import com.ergodicity.marketdb.{OopsException, ByteArray, Oops}
-import java.util.concurrent.locks.{ReentrantLock, Lock}
-import java.util.concurrent.atomic.AtomicReference
+import com.ergodicity.marketdb.core.MarketDb.ClientBuilder
+import com.ergodicity.marketdb.{Connection, OopsException, ByteArray, Oops}
 import com.twitter.ostrich.stats.Stats
+import com.twitter.util.{FuturePool, Promise, Future}
+import java.util
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.{ReentrantLock, Lock}
+import org.hbase.async._
+import org.slf4j.LoggerFactory
+import scala.concurrent.stm._
+import scalaz._
+import scalaz.Scalaz._
 
 
 /**
@@ -29,10 +27,12 @@ import com.twitter.ostrich.stats.Stats
  * immutable).  IDs are encoded on a fixed number of bytes, which is
  * implementation dependent.
  */
-class UIDProvider(client: HBaseClient, cache: UIDCache,
-                  table: ByteArray, kind: ByteArray, idWidth: Short) {
+class UIDProvider(connection: Connection, cache: UIDCache,
+                  table: ByteArray, kind: ByteArray, idWidth: Short)(implicit clientBuilder: ClientBuilder) {
 
   private val log = LoggerFactory.getLogger(classOf[UIDProvider])
+
+  val client = clientBuilder(connection)
 
   val ProvideIdThreadPoolSize = 1
 
@@ -141,7 +141,7 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
   def provideId(name: String): Future[UniqueId] = {
     val cached = cache.id(name).map(UniqueId(name, _))
     if (cached.isDefined) cacheHits += 1 else cacheMisses +=1
-    cached.map(uid => Future {uid}) getOrElse promiseProvideId(name)
+    cached.map(uid => Future(uid)) getOrElse promiseProvideId(name)
   }
 
   def promiseProvideId(name: String) = {
@@ -193,7 +193,7 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
     val promise = new Promise[R]
 
     deferred addCallback {
-      (row: ArrayList[KeyValue]) =>
+      (row: util.ArrayList[KeyValue]) =>
         val value = if (row == null || row.isEmpty) f(None) else f(Some(ByteArray(row.get(0).value())))
         promise.setValue(value)
     }
@@ -234,7 +234,7 @@ class UIDProvider(client: HBaseClient, cache: UIDCache,
       val curr = computation()
       prev <+> curr
     }) take retryCount span (_.isFailure)
-    (errSuccessStreams._2 ++ errSuccessStreams._1.reverse) head
+    (errSuccessStreams._2 ++ errSuccessStreams._1.reverse).head
   }
 
 
@@ -363,7 +363,6 @@ class UIDCache {
   def cachedIds = idCache.single().keySet
 
   def cache(name: String, id: ByteArray): ValidationNEL[Oops, UniqueId] = {
-    val log = LoggerFactory.getLogger(classOf[UIDCache])
     atomic {
       implicit txn =>
 

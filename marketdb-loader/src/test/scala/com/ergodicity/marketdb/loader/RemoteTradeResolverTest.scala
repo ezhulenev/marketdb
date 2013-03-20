@@ -1,10 +1,7 @@
 package com.ergodicity.marketdb.loader
 
-import scalaz._
-import effects.IO
-import Scalaz._
 import org.slf4j.LoggerFactory
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.mockito.Mockito._
 import org.mockito.Matchers._
 import org.apache.commons.httpclient.methods.GetMethod
@@ -13,7 +10,7 @@ import org.joda.time.{LocalDate, DateTime}
 import util.Iteratees
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
 
-class RemoteTradeResolverTest extends Spec with HttpClientMatchers {
+class RemoteTradeResolverTest extends WordSpec with HttpClientMatchers {
   val log = LoggerFactory.getLogger(classOf[RemoteTradeResolverTest])
 
   val is = classOf[RemoteTradeResolverTest].getResourceAsStream("/data/FT120201.zip")
@@ -34,11 +31,11 @@ class RemoteTradeResolverTest extends Spec with HttpClientMatchers {
 
   val RemoteRefResolver = RefResolver(RtsFtpUrl, RtsPattern)
 
-  describe("Remote RTS History Resolver") {
+  "Remote RTS History Resolver" must {
 
     val tradeResolver = new TradeResolver(RemoteRefResolver, RtsTradeHistory(_: RemoteRef))
 
-    it("should return None for non existing trade data") {
+    "return None for non existing trade data" in {
       reset(client)
       when(client.executeMethod(any(classOf[GetMethod]))).thenReturn(HttpStatus.SC_NOT_FOUND)
 
@@ -46,7 +43,7 @@ class RemoteTradeResolverTest extends Spec with HttpClientMatchers {
       assert(tradeData.isEmpty)
     }
 
-    it("should return Some for existing trade data") {
+    "return Some for existing trade data" in {
       // -- Set response stream to test data
       reset(client)
       when(client.executeMethod(headMethodFor(RtsFtpUrl+"//F/2012/FT120201.zip"))).thenReturn(HttpStatus.SC_OK)

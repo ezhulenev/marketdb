@@ -1,13 +1,13 @@
 package com.ergodicity.marketdb
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.slf4j.LoggerFactory
 
-class ByteArrayTest extends Spec {
+class ByteArrayTest extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[ByteArrayTest])
 
-  describe("ByteArray") {
-    it("should properly ovverride equals") {
+  "ByteArray" must {
+    "properly ovverride equals" in {
       val ba1 = new ByteArray(Array[Byte](0, 0, 1))
       val ba2 = new ByteArray(Array[Byte](0, 0, 1))
       val ba3 = new ByteArray(Array[Byte](0, 0, 2))
@@ -16,7 +16,7 @@ class ByteArrayTest extends Spec {
       assert(ba1 != ba3)
     }
 
-    it("should be proeprly constructed from bytes") {
+    "be proeprly constructed from bytes" in {
       val ba = ByteArray(0, 0, 1)
       log.info("ByteArray = " + ba)
     }

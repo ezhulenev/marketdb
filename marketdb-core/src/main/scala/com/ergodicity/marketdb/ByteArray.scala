@@ -1,8 +1,9 @@
 package com.ergodicity.marketdb
 
+import java.util
 import java.util.Arrays
-import scalaz.ImmutableArray
 import org.hbase.async.Bytes
+import scalaz.ImmutableArray
 import scalaz.ImmutableArray._
 
 object ByteArray {
@@ -34,7 +35,7 @@ class ByteArray(array: Array[Byte]) {
   val internal = ImmutableArray.fromArray(array)  
   
   override def equals(that: Any) = that match {
-    case ba: ByteArray => Arrays.equals(toArray, ba.toArray)
+    case ba: ByteArray => util.Arrays.equals(toArray, ba.toArray)
     case _ => false
   }
   

@@ -7,11 +7,11 @@ import org.slf4j.LoggerFactory
 import org.jboss.netty.buffer.ChannelBuffers
 import com.twitter.finagle.kestrel.Client
 import com.twitter.ostrich.stats.Stats
-import com.twitter.concurrent.Offer
 import java.util.concurrent.atomic.AtomicReference
-import com.ergodicity.zeromq.{Client => ZMQClient}
 import sbinary.{EOF=>No,_}
 import sbinary.Operations._
+import com.twitter.util.Future
+import com.twitter.concurrent.{Tx, Offer}
 
 
 case class LoaderReport[E](count: Int, list: List[E])
@@ -47,13 +47,6 @@ object Iteratees {
     }
   }
 
-  def zmqBulkLoader[E](client: ZMQClient)
-                      (implicit writes: Writes[List[E]], settings: BatchSettings): IterV[E, LoaderReport[E]] = {
-    bulkLoader(settings) {list: List[E] =>
-      client.send(list)
-    }
-  }
-  
   private def bulkLoader[E](settings: BatchSettings)(flush: List[E] => Unit) = {
     def flushIfRequired(e: E, rep: LoaderReport[E]) = {
       if (rep.list.size >= settings.size) {
@@ -113,14 +106,16 @@ object Iteratees {
 }
 
 object OfferOnce {
+  
   def apply[A](value: A): Offer[A] = new Offer[A] {
     val ref = new AtomicReference[Option[A]](Some(value))
 
-    def objects = Seq()
+    /*def objects = Seq()
 
-    def poll() = ref.getAndSet(None).map(() => _)
+    def poll() = ref.getAndSet(None).map(() => _)*/
 
-    def enqueue(setter: this.type#Setter) = null
+    def prepare() = ref.getAndSet(None) map {value =>
+      Future.value(Tx.const(value))
+    } getOrElse Future.never
   }
-  
 }

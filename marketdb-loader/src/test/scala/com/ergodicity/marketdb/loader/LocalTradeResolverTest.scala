@@ -1,27 +1,27 @@
 package com.ergodicity.marketdb.loader
 
-import org.scalatest.Spec
+import org.scalatest.WordSpec
 import org.slf4j.LoggerFactory
 import java.io.File
 import org.joda.time.{LocalDate, DateTime}
 import util.Iteratees
 
-class LocalTradeResolverTest extends Spec {
+class LocalTradeResolverTest extends WordSpec {
   val log = LoggerFactory.getLogger(classOf[LocalTradeResolverTest])
 
   val RtsTradeHistoryPattern = "'ft'YYMMdd'.zip'"
   val res = classOf[LocalTradeResolverTest].getResource("/data").toURI
   val LocalRefResolver = RefResolver(new File(res), RtsTradeHistoryPattern)
 
-  describe("Local RTS History Resolver") {
+  "Local RTS History Resolver" must {
     val tradeResolver = new TradeResolver(LocalRefResolver, RtsTradeHistory(_: LocalRef))
 
-    it("should return None for non existing trade data") {
+    "return None for non existing trade data" in {
       val tradeData = tradeResolver.resolve((new DateTime).toLocalDate)
       assert(tradeData.isEmpty)
     }
 
-    it("should return Some for existing trade data") {
+    "return Some for existing trade data" in {
       val date = new LocalDate(2012, 2, 1)
       val tradeData = tradeResolver.resolve(date)
       log.info("Trade data: " + tradeData)
