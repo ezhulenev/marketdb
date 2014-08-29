@@ -12,6 +12,7 @@ And use following library dependency:
 
 ```
 libraryDependencies +=  "com.scalafi.marketdb" %% "marketdb-api" % "0.0.1"
+```
 
 ## What is MarketDb
 
