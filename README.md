@@ -1,23 +1,17 @@
-MarketDb is built using [sbt](http://code.google.com/p/simple-build-tool/wiki/RunningSbt). To build:
-    
-Clone scala-time repo and install it locally (scala-time 0.5 for scala 2.9.2)
-
-    git clone git://github.com/ezhulenev/scala-time.git
-    cd scala-time
-    sbt publish-local
-    
-Package
-
-    $ sbt package
-    
-Create Intellij Idea project
-
-    $ sbt gen-idea
-
-
-
-
 # MarketDb
+
+## Where to get it
+
+To get the latest version of the library, add the following to your SBT build:
+
+``` scala
+resolvers += "Scalafi Bintray Repo" at "http://dl.bintray.com/ezhulenev/releases"
+```
+
+And use following library dependency:
+
+```
+libraryDependencies +=  "com.scalafi.marketdb" %% "marketdb-api" % "0.0.1"
 
 ## What is MarketDb
 
