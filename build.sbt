@@ -20,7 +20,7 @@ resolvers in ThisBuild ++= Seq(
   "Akka Repository"             at "http://akka.io/snapshots/"
 )
 
-licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
+licenses in ThisBuild += ("MIT", url("http://opensource.org/licenses/MIT"))
 
 // Projects
 
